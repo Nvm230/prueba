@@ -1,0 +1,396 @@
+{
+  "info": {
+    "name": "UniVibe - Full Flow (curl parity)",
+    "description": "Colección de endpoints UniVibe con variables, auth y scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "email", "value": "alice@uni.test" },
+    { "key": "password", "value": "secret" },
+    { "key": "email2", "value": "bob@uni.test" },
+    { "key": "password2", "value": "secret" },
+    { "key": "token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "user2Id", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "groupId", "value": "" },
+    { "key": "questionId", "value": "" },
+    { "key": "payload", "value": "" },
+    { "key": "accessToken", "value": "TU_ACCESS_TOKEN_GOOGLE" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": [ "{{baseUrl}}" ], "path": [ "api","auth","register" ] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "description": "Crea usuario y devuelve JWT."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code===200) {",
+                  "  const j=pm.response.json();",
+                  "  if (j.token) pm.collectionVariables.set('token', j.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": [ "{{baseUrl}}" ], "path": [ "api","auth","login" ] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "description": "Inicia sesión y devuelve JWT."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code===200) {",
+                  "  const j=pm.response.json();",
+                  "  if (j.token) pm.collectionVariables.set('token', j.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users (ADMIN)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users", "host": [ "{{baseUrl}}" ], "path": [ "api","users" ] },
+            "description": "Lista usuarios (requiere ADMIN)."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const arr = pm.response.json();",
+                  "  const email = pm.collectionVariables.get('email');",
+                  "  const email2 = pm.collectionVariables.get('email2');",
+                  "  const u = arr.find(x => x.email === email);",
+                  "  if (u) pm.collectionVariables.set('userId', String(u.id));",
+                  "  const u2 = arr.find(x => x.email === email2);",
+                  "  if (u2) pm.collectionVariables.set('user2Id', String(u2.id));",
+                  "} catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Role (to SERVER)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/role?role=SERVER",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api","users","{{userId}}","role" ],
+              "query": [ { "key": "role", "value": "SERVER" } ]
+            },
+            "description": "Asigna rol SERVER a un usuario (ADMIN)."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/events", "host": [ "{{baseUrl}}" ], "path": [ "api","events" ] },
+            "description": "Lista eventos."
+          }
+        },
+        {
+          "name": "Create Event (ADMIN/SERVER)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/events", "host": [ "{{baseUrl}}" ], "path": [ "api","events" ] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\":\"Feria de Proyectos\",\n  \"category\":\"academico\",\n  \"description\":\"Charlas y demos\",\n  \"faculty\":\"Ingenieria\",\n  \"career\":\"Software\",\n  \"startTime\":\"2025-10-26T10:00:00Z\",\n  \"endTime\":\"2025-10-26T12:00:00Z\"\n}"
+            },
+            "description": "Crea evento (ADMIN o SERVER)."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j=pm.response.json();",
+                  "  if (j && j.id) pm.collectionVariables.set('eventId', String(j.id));",
+                  "} catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start Event (ADMIN/SERVER)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/events/{{eventId}}/start", "host": [ "{{baseUrl}}" ], "path": [ "api","events","{{eventId}}","start" ] },
+            "description": "Inicia evento (habilita chat)."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrations",
+      "item": [
+        {
+          "name": "Register to Event",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/registrations/{{eventId}}", "host": [ "{{baseUrl}}" ], "path": [ "api","registrations","{{eventId}}" ] },
+            "description": "Inscripción: devuelve QR en base64 (imagen)."
+          }
+        },
+        {
+          "name": "Check-in",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/registrations/check-in", "host": [ "{{baseUrl}}" ], "path": [ "api","registrations","check-in" ] },
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": \"{{payload}}\"\n}" },
+            "description": "Check-in con payload = Base64 URL-safe de \"userId:eventId\""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const uid = pm.collectionVariables.get('userId');",
+                  "const eid = pm.collectionVariables.get('eventId');",
+                  "if (uid && eid) {",
+                  "  let b64 = Buffer.from(`${uid}:${eid}`).toString('base64')",
+                  "    .replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');",
+                  "  pm.variables.set('payload', b64);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Send Notification (ADMIN/SERVER)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{userId}}?title=Aviso&message=Hola",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api","notifications","{{userId}}" ],
+              "query": [
+                { "key": "title", "value": "Aviso" },
+                { "key": "message", "value": "Hola" }
+              ]
+            },
+            "description": "Envía notificación a un usuario."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          }
+        },
+        {
+          "name": "List Notifications (self or ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/notifications/{{userId}}", "host": [ "{{baseUrl}}" ], "path": [ "api","notifications","{{userId}}" ] },
+            "description": "Lista notificaciones del usuario."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/groups?name=EstudioDBP&ownerId={{userId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api","groups" ],
+              "query": [
+                { "key": "name", "value": "EstudioDBP" },
+                { "key": "ownerId", "value": "{{userId}}" }
+              ]
+            },
+            "description": "Crea grupo con ownerId=userId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j=pm.response.json();",
+                  "  if (j && j.id) pm.collectionVariables.set('groupId', String(j.id));",
+                  "} catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Join Group (add user2)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/{{groupId}}/join?userId={{user2Id}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api","groups","{{groupId}}","join" ],
+              "query": [ { "key": "userId", "value": "{{user2Id}}" } ]
+            },
+            "description": "Une a user2Id al grupo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Surveys",
+      "item": [
+        {
+          "name": "Create Survey (ADMIN/SERVER)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/surveys?eventId={{eventId}}&title=Feedback&questions=%C2%BFTe%20gust%C3%B3%3F&questions=%C2%BFQu%C3%A9%20mejorar%C3%ADas%3F",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api","surveys" ],
+              "query": [
+                { "key": "eventId", "value": "{{eventId}}" },
+                { "key": "title", "value": "Feedback" },
+                { "key": "questions", "value": "¿Te gustó?" },
+                { "key": "questions", "value": "¿Qué mejorarías?" }
+              ]
+            },
+            "description": "Crea encuesta para el evento."
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [ { "key": "token", "value": "{{adminToken}}", "type": "string" } ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j=pm.response.json();",
+                  "  const qId = Array.isArray(j.questionIds) ? j.questionIds[0] : null;",
+                  "  if (qId) pm.collectionVariables.set('questionId', String(qId));",
+                  "} catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Answer Survey (user2)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "url": { "raw": "{{baseUrl}}/api/surveys/{{questionId}}/answer", "host": [ "{{baseUrl}}" ], "path": [ "api","surveys","{{questionId}}","answer" ] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "userId", "value": "{{user2Id}}" },
+                { "key": "answer", "value": "Si" }
+              ]
+            },
+            "description": "Responde la encuesta con user2."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integration - Google Calendar",
+      "item": [
+        {
+          "name": "Sync Event",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/integration/googlecalendar/sync/{{eventId}}", "host": [ "{{baseUrl}}" ], "path": [ "api","integration","googlecalendar","sync","{{eventId}}" ] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"{{accessToken}}\",\n  \"calendarId\": \"primary\"\n}"
+            },
+            "description": "Sincroniza el evento con Google Calendar."
+          }
+        }
+      ]
+    }
+  ]
+}
