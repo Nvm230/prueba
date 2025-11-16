@@ -48,16 +48,13 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     bootstrap();
   }, [bootstrap]);
 
-  // Inicializar servicio de presencia cuando el usuario está autenticado
   useEffect(() => {
     if (user) {
-      // Conectar al servicio de presencia (sin callback específico, solo para mantener la conexión)
       const disconnectPresence = presenceService.connect(() => {});
       return () => {
         disconnectPresence();
       };
     } else {
-      // Desconectar si el usuario cierra sesión
       presenceService.disconnect();
     }
   }, [user]);

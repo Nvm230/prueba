@@ -37,7 +37,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Cargar mensajes guardados (siempre, incluso si el evento terminó)
   const { data: savedMessages, refetch: refetchMessages } = useQuery({
     queryKey: ['chatMessages', eventId],
     queryFn: ({ signal }) => fetchChatMessages(eventId, { page: 0, size: 100 }, signal),
@@ -51,7 +50,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
     }
   }, [savedMessages]);
 
-  // Conectar WebSocket solo si el evento está LIVE
   useEffect(() => {
     if (!isLive || !user) {
       setIsConnected(false);
@@ -62,7 +60,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       eventId,
       (message: ChatMessage) => {
         setMessages((prev) => {
-          // Evitar duplicados
           if (prev.some((m) => m.id === message.id)) {
             return prev;
           }
@@ -88,7 +85,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
   }, [messages]);
 
   const validateFile = (file: File): boolean => {
-    // Validar tipo
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       const extension = '.' + file.name.split('.').pop()?.toLowerCase();
       if (!ALLOWED_EXTENSIONS.includes(extension)) {
@@ -101,7 +97,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       }
     }
 
-    // Validar tamaño
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
       pushToast({
         type: 'error',
@@ -127,7 +122,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       return;
     }
 
-    // Si es imagen, crear preview
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -150,7 +144,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
   };
 
   const uploadFile = async (file: File): Promise<string> => {
-    // Convertir a base64
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -179,7 +172,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       const messageContent = chatInput.trim() || (selectedFile ? `📎 ${selectedFile.file.name}` : '');
 
       if (isLive && isConnected) {
-        // Enviar por WebSocket si está LIVE
         chatService.sendMessage(eventId, {
           content: messageContent,
           fileUrl,
@@ -197,7 +189,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
         cameraInputRef.current.value = '';
       }
 
-      // Refrescar mensajes guardados
       setTimeout(() => refetchMessages(), 500);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -211,12 +202,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
 
   const downloadFile = (fileUrl: string, fileName: string, fileType?: string) => {
     try {
-      // Asegurar que el fileUrl tenga el prefijo data: si es base64
       let dataUrl: string;
       if (fileUrl.startsWith('data:')) {
         dataUrl = fileUrl;
       } else {
-        // Si tiene coma, extraer solo la parte base64
         const base64Data = fileUrl.includes(',') ? fileUrl.split(',')[1] : fileUrl;
         dataUrl = `data:${fileType || 'image/png'};base64,${base64Data}`;
       }
@@ -300,11 +289,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                         <div className="relative group">
                           <img
                             src={(() => {
-                              // Si ya tiene el prefijo data:, usarlo directamente
                               if (msg.fileUrl.startsWith('data:')) {
                                 return msg.fileUrl;
                               }
-                              // Si no tiene prefijo, agregarlo
                               const base64Data = msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl;
                               return `data:${msg.fileType || 'image/png'};base64,${base64Data}`;
                             })()}
@@ -316,13 +303,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                                 fileType: msg.fileType,
                                 fileName: msg.fileName
                               });
-                              // Intentar diferentes formatos
                               const img = e.target as HTMLImageElement;
                               const base64Data = msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl;
                               img.src = `data:${msg.fileType || 'image/png'};base64,${base64Data}`;
                             }}
                             onClick={() => {
-                              // Abrir imagen en nueva ventana
                               const imgSrc = msg.fileUrl.startsWith('data:') 
                                 ? msg.fileUrl 
                                 : `data:${msg.fileType || 'image/png'};base64,${msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl}`;

@@ -16,7 +16,6 @@ export const createSurvey = (
   payload: { eventId: number; title: string; questions: string[] },
   signal?: AbortSignal
 ) => {
-  // Enviar como form data para que Spring Boot pueda parsear el array correctamente
   const formData = new URLSearchParams();
   formData.append('eventId', payload.eventId.toString());
   formData.append('title', payload.title);

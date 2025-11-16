@@ -1,13 +1,6 @@
-// Polyfills que deben ejecutarse ANTES de cualquier otro código
-// Este archivo se importa primero en main.tsx
-
-// Polyfill para Request API si no está disponible
 if (typeof window !== 'undefined') {
-  // Asegurar que Request esté disponible en globalThis y window
   if (typeof globalThis.Request === 'undefined') {
-    // Si fetch está disponible, crear un polyfill básico de Request
     if (typeof fetch !== 'undefined') {
-      // Polyfill mínimo de Request
       (globalThis as any).Request = class Request {
         url: string;
         method: string;
@@ -45,10 +38,8 @@ if (typeof window !== 'undefined') {
         }
       };
 
-      // También asegurar en window
       (window as any).Request = (globalThis as any).Request;
     } else {
-      // Si ni fetch ni Request están disponibles, crear placeholders
       console.warn('Request and fetch are not available. Some features may not work.');
       (globalThis as any).Request = class Request {
         constructor() {
@@ -59,7 +50,6 @@ if (typeof window !== 'undefined') {
     }
   }
 
-  // Asegurar que Response también esté disponible
   if (typeof globalThis.Response === 'undefined' && typeof fetch !== 'undefined') {
     (globalThis as any).Response = class Response {
       constructor(public body: any, public init?: ResponseInit) {}

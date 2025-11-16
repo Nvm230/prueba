@@ -17,7 +17,6 @@ const PrivateChatPage = () => {
   const { user } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
 
-  // Conectar al servicio de presencia
   useEffect(() => {
     const disconnectPresence = presenceService.connect((update: PresenceUpdate) => {
       setOnlineUsers((prev) => {
@@ -31,7 +30,6 @@ const PrivateChatPage = () => {
       });
     });
 
-    // Cargar estados iniciales de todos los amigos
     return () => {
       disconnectPresence();
     };

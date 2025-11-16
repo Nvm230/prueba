@@ -3,16 +3,11 @@ import { Client, Message } from '@stomp/stompjs';
 import { storage, tokenStorageKey } from '@/utils/storage';
 import { Notification } from '@/types';
 
-// Obtener la URL base de WebSocket desde variables de entorno
-// En Docker local: http://localhost:8080 (backend expuesto en puerto 8080)
-// En desarrollo local: http://localhost:8080
-// En producción AWS: configurar VITE_WS_BASE_URL con la URL pública del backend
 const getWsBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_WS_BASE_URL;
   if (envUrl && envUrl !== '') {
     return envUrl;
   }
-  // Por defecto, usar localhost:8080 (funciona en desarrollo y Docker local)
   return 'http://localhost:8080';
 };
 
@@ -48,7 +43,6 @@ class NotificationWebSocketService {
           },
           connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
           debug: (str) => {
-            // Solo log en desarrollo
             if (import.meta.env.DEV) {
               console.log('[Notification WS]', str);
             }
@@ -58,7 +52,6 @@ class NotificationWebSocketService {
           heartbeatOutgoing: 4000,
           onConnect: () => {
             console.log('[Notification WS] Connected');
-            // Suscribirse a todos los usuarios que tienen callbacks
             this.subscribers.forEach((_, userId) => {
               try {
                 this.subscribeToUser(userId);
@@ -134,7 +127,6 @@ class NotificationWebSocketService {
       });
     }
 
-    // Si no hay más suscriptores, desconectar
     if (this.subscribers.size === 0 && this.client) {
       this.client.deactivate();
       this.client = null;

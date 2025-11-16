@@ -34,7 +34,6 @@ const NotificationsPage = () => {
     enabled: Boolean(user)
   });
 
-  // Para ADMIN/SERVER: cargar lista de usuarios
   const { data: usersData } = useQuery({
     queryKey: ['users', { page: 0, size: 100 }],
     queryFn: ({ signal }) => fetchUsers({ page: 0, size: 100 }, signal),
@@ -43,7 +42,6 @@ const NotificationsPage = () => {
 
   const queryClient = useQueryClient();
 
-  // Conectar a WebSocket para recibir notificaciones en tiempo real
   useEffect(() => {
     if (!user?.id) return;
 
@@ -51,19 +49,15 @@ const NotificationsPage = () => {
 
     try {
       disconnect = notificationWebSocketService.connect(user.id, (notification: Notification) => {
-        // Cuando llega una nueva notificación por WebSocket
         pushToast({
           type: 'info',
           title: notification.title,
           description: notification.message
         });
-        // Refrescar la lista de notificaciones
         queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
       });
     } catch (error) {
       console.error('[Notifications] Error connecting to WebSocket:', error);
-      // No mostrar error al usuario, simplemente no usar WebSocket
-      // Las notificaciones seguirán funcionando al refrescar la página
     }
 
     return () => {

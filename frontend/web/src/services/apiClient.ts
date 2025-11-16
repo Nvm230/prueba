@@ -2,16 +2,11 @@ import axios from 'axios';
 import { API_TIMEOUT } from '@/utils/constants';
 import { storage, tokenStorageKey } from '@/utils/storage';
 
-// Obtener la URL base de la API desde variables de entorno
-// En Docker local: http://localhost:8080 (backend expuesto en puerto 8080)
-// En desarrollo local: http://localhost:8080
-// En producción AWS: configurar VITE_API_BASE_URL con la URL pública del backend
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (envUrl && envUrl !== '') {
     return envUrl;
   }
-  // Por defecto, usar localhost:8080 (funciona en desarrollo y Docker local)
   return 'http://localhost:8080';
 };
 

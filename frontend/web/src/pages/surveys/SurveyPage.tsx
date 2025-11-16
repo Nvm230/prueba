@@ -33,7 +33,6 @@ const SurveyPage = () => {
 
   const canManageSurveys = user && (user.role === 'ADMIN' || user.role === 'SERVER');
 
-  // Cargar eventos para el selector (solo PENDING o LIVE)
   const eventsQuery = useQuery({
     queryKey: ['events', 'all'],
     queryFn: ({ signal }) => fetchEvents({ page: 0, size: 1000 }, signal),

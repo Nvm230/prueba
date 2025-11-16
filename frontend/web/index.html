@@ -5,14 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UniVibe</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- Polyfill para Request API - DEBE ejecutarse ANTES de cualquier otro script -->
     <script>
-      // Ejecutar INMEDIATAMENTE y de forma SÍNCRONA antes de cualquier módulo
-      // NO usar async/defer - debe bloquear la ejecución hasta completarse
       (function() {
         'use strict';
         try {
-          // Asegurar globalThis
           if (typeof globalThis === 'undefined') {
             if (typeof window !== 'undefined') {
               window.globalThis = window;
@@ -23,7 +19,6 @@
             }
           }
 
-          // Polyfill Request si no existe
           if (typeof globalThis.Request === 'undefined') {
             if (typeof fetch !== 'undefined') {
               var RequestPolyfill = function Request(input, init) {
@@ -57,7 +52,6 @@
                 return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
               };
 
-              // Asignar a todos los lugares posibles
               globalThis.Request = RequestPolyfill;
               if (typeof window !== 'undefined') {
                 window.Request = RequestPolyfill;
@@ -66,7 +60,6 @@
                 global.Request = RequestPolyfill;
               }
             } else {
-              // Fallback si fetch tampoco existe
               console.warn('Request and fetch are not available');
               globalThis.Request = function Request() {
                 throw new Error('Request is not supported in this environment');

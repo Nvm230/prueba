@@ -84,12 +84,10 @@ const CreateEventPage = () => {
   });
 
   const onSubmit = async (data: EventFormValues) => {
-    // Convertir fechas de datetime-local a ISO string para el backend
     const payload = {
       ...data,
       startTime: new Date(data.startTime).toISOString(),
       endTime: new Date(data.endTime).toISOString(),
-      // Asegurar que campos opcionales sean null en lugar de string vacío
       faculty: data.faculty || null,
       career: data.career || null
     };

@@ -15,16 +15,15 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: '0.0.0.0', // Permitir acceso desde fuera del contenedor
-    open: false // No abrir navegador automáticamente (no funciona en Docker)
+    host: '0.0.0.0',
+    open: false
   },
   build: {
     target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
-    minify: false, // Deshabilitar minificación temporalmente para debug
+    minify: false,
     sourcemap: false,
     rollupOptions: {
       onwarn(warning, warn) {
-        // Suprimir advertencias de "vitalapi" y otros mensajes de consola en producción
         if (warning.message && (
           warning.message.includes('vitalapi') || 
           warning.message.includes('vitalApi') ||

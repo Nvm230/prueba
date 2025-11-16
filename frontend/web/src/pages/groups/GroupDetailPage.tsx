@@ -78,7 +78,6 @@ const GroupDetailPage = () => {
     enabled: Boolean(groupId) && activeTab === 'surveys'
   });
 
-  // Cargar encuestas disponibles para compartir
   const { data: availableSurveys } = useQuery({
     queryKey: ['surveys', 'all'],
     queryFn: ({ signal }) => fetchSurveys({}, signal),

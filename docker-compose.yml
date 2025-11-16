@@ -49,19 +49,16 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile
       args:
-        # Usar localhost:8080 igual que en desarrollo local
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8080}
         - VITE_WS_BASE_URL=${VITE_WS_BASE_URL:-http://localhost:8080}
     container_name: univibe-frontend
     depends_on:
       - backend
     ports:
-      # Puerto 5173 (puerto por defecto de Vite dev server) - igual que en local
       - "5173:5173"
     networks:
       - univibe-network
     restart: unless-stopped
-    # Volumen para hot-reload (opcional, pero útil para desarrollo)
     volumes:
       - ./frontend/web:/app
       - /app/node_modules

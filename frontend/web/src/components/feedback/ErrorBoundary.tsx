@@ -20,7 +20,6 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary captured an error', error, errorInfo);
-    // Aquí podrías enviar el error a un servicio de logging
   }
 
   handleReset = () => {
@@ -29,12 +28,10 @@ class ErrorBoundary extends Component<Props, State> {
 
   handleGoHome = () => {
     this.handleReset();
-    // Redirigir al dashboard
     window.location.href = '/';
   };
 
   handleReload = () => {
-    // Recargar desde el dashboard
     window.location.href = '/';
   };
 

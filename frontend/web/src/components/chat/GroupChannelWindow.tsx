@@ -37,7 +37,6 @@ const GroupChannelWindow: React.FC<GroupChannelWindowProps> = ({ groupId, canSen
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Cargar mensajes guardados
   const { data: savedMessages, refetch: refetchMessages } = useQuery({
     queryKey: ['groupMessages', groupId],
     queryFn: ({ signal }) => getGroupMessages(groupId, { page: 0, size: 100 }, signal),
@@ -51,7 +50,6 @@ const GroupChannelWindow: React.FC<GroupChannelWindowProps> = ({ groupId, canSen
     }
   }, [savedMessages]);
 
-  // Conectar WebSocket
   useEffect(() => {
     if (!user) {
       setIsConnected(false);
@@ -204,12 +202,10 @@ const GroupChannelWindow: React.FC<GroupChannelWindowProps> = ({ groupId, canSen
 
   const downloadFile = (fileUrl: string, fileName: string, fileType?: string) => {
     try {
-      // Asegurar que el fileUrl tenga el prefijo data: si es base64
       let dataUrl: string;
       if (fileUrl.startsWith('data:')) {
         dataUrl = fileUrl;
       } else {
-        // Si tiene coma, extraer solo la parte base64
         const base64Data = fileUrl.includes(',') ? fileUrl.split(',')[1] : fileUrl;
         dataUrl = `data:${fileType || 'image/png'};base64,${base64Data}`;
       }
