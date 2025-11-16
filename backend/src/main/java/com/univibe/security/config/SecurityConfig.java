@@ -44,8 +44,8 @@ public class SecurityConfig {
         String allowedOriginsEnv = System.getenv().getOrDefault("CORS_ALLOWED_ORIGINS", "");
         List<String> allowedOrigins;
         
-        if (allowedOriginsEnv.isEmpty() || "*".equals(allowedOriginsEnv)) {
-            // Orígenes por defecto
+        if (allowedOriginsEnv.isEmpty()) {
+            // Orígenes por defecto (solo localhost)
             allowedOrigins = List.of(
                     "http://localhost:5173", 
                     "http://127.0.0.1:5173",
@@ -56,6 +56,17 @@ public class SecurityConfig {
                     "http://127.0.0.1",
                     "http://127.0.0.1:80"
             );
+        } else if ("*".equals(allowedOriginsEnv)) {
+            // Permitir cualquier origen (útil para AWS/IP pública)
+            config.setAllowedOriginPatterns(List.of("*"));
+            config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+            config.setAllowedHeaders(List.of("*"));
+            config.setAllowCredentials(true);
+            config.setMaxAge(3600L);
+            
+            UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+            source.registerCorsConfiguration("/**", config);
+            return source;
         } else {
             // Dividir por comas y limpiar espacios
             allowedOrigins = List.of(allowedOriginsEnv.split(","))
