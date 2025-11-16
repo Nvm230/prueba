@@ -47,10 +47,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, ServletWebRequest req) {
+        ex.printStackTrace(); // Log para debugging
         ErrorResponse err = new ErrorResponse();
         err.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
         err.setError(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
-        err.setMessage("Unexpected error");
+        // En desarrollo, mostrar el mensaje real; en producción, mensaje genérico
+        String message = ex.getMessage() != null ? ex.getMessage() : "Unexpected error";
+        if (message.length() > 200) {
+            message = message.substring(0, 200) + "...";
+        }
+        err.setMessage(message);
         err.setPath(req.getRequest().getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
     }

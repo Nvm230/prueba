@@ -15,12 +15,15 @@ export const fetchNotifications = (
 
 export const sendNotification = (
   userId: number,
-  payload: { title: string; message: string },
+  payload: { title: string; message: string; sendEmail?: boolean },
   signal?: AbortSignal
 ) =>
   apiClient
     .post<Notification>(`/api/notifications/${userId}`, null, {
-      params: payload,
+      params: {
+        ...payload,
+        sendEmail: payload.sendEmail ?? false
+      },
       signal
     })
     .then((res) => res.data);

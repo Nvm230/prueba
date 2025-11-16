@@ -8,6 +8,8 @@ export interface User {
   preferredCategories: string[];
   points: number;
   createdAt: string;
+  profilePictureUrl?: string;
+  isVisible?: boolean;
 }
 
 export type EventStatus = 'PENDING' | 'LIVE' | 'FINISHED';
@@ -47,8 +49,9 @@ export interface SurveyQuestion {
 export interface Survey {
   id: number;
   title: string;
-  event: Event;
+  event: Event | null;
   questions: SurveyQuestion[];
+  closed?: boolean;
 }
 
 export interface Notification {

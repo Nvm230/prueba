@@ -2,6 +2,7 @@ package com.univibe.registration.web;
 
 import com.univibe.event.model.Event;
 import com.univibe.event.repo.EventRepository;
+import com.univibe.gamification.service.GamificationService;
 import com.univibe.registration.model.Registration;
 import com.univibe.registration.model.RegistrationStatus;
 import com.univibe.registration.repo.RegistrationRepository;
@@ -27,14 +28,17 @@ public class RegistrationController {
     private final RegistrationRepository registrationRepository;
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
-    private final QrService qrService = new QrService();
+    private final QrService qrService;
     private final ApplicationEventPublisher eventPublisher;
+    private final GamificationService gamificationService;
 
-    public RegistrationController(RegistrationRepository registrationRepository, UserRepository userRepository, EventRepository eventRepository, ApplicationEventPublisher eventPublisher) {
+    public RegistrationController(RegistrationRepository registrationRepository, UserRepository userRepository, EventRepository eventRepository, QrService qrService, ApplicationEventPublisher eventPublisher, GamificationService gamificationService) {
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
+        this.qrService = qrService;
         this.eventPublisher = eventPublisher;
+        this.gamificationService = gamificationService;
     }
 
     @PostMapping(value = "/{eventId}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -42,6 +46,11 @@ public class RegistrationController {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
         Event event = eventRepository.findById(eventId).orElseThrow();
+
+        // No permitir registro a eventos finalizados
+        if (event.getStatus() == com.univibe.event.model.EventStatus.FINISHED) {
+            throw new IllegalStateException("Cannot register to finished events");
+        }
 
         registrationRepository.findByUserIdAndEventId(user.getId(), eventId).ifPresent(r -> { throw new IllegalStateException("Already registered"); });
 
@@ -67,9 +76,16 @@ public class RegistrationController {
         Long eventId = Long.parseLong(parts[1]);
 
         Registration r = registrationRepository.findByUserIdAndEventId(userId, eventId).orElseThrow();
+        if (r.getStatus() == RegistrationStatus.CHECKED_IN) {
+            throw new IllegalStateException("Already checked in");
+        }
         r.setStatus(RegistrationStatus.CHECKED_IN);
         r.setCheckedInAt(Instant.now());
         registrationRepository.save(r);
+        
+        // Otorgar 1 punto por asistir al evento
+        gamificationService.addPoints(userId, 1);
+        
         return new CheckInResponse(r.getStatus(), r.getCheckedInAt());
     }
 }

@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 import jakarta.validation.Valid;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.util.StringUtils;
 
@@ -55,6 +57,9 @@ public class UserController {
         User user = userRepository.findByEmail((String) auth.getPrincipal()).orElseThrow();
         user.setName(request.name());
         user.setPreferredCategories(request.preferredCategories());
+        if (request.profilePictureUrl() != null) {
+            user.setProfilePictureUrl(request.profilePictureUrl());
+        }
         return userRepository.save(user);
     }
 
@@ -69,8 +74,15 @@ public class UserController {
 
     @PostMapping("/{userId}/role")
     @PreAuthorize("hasRole('ADMIN')")
-    public User updateRole(@PathVariable Long userId, @RequestParam Role role) {
+    public User updateRole(@PathVariable Long userId, @RequestParam Role role, Authentication auth) {
+        User requester = userRepository.findByEmail((String) auth.getPrincipal()).orElseThrow();
         User u = userRepository.findById(userId).orElseThrow();
+        
+        // Prevenir que un admin modifique su propio rol
+        if (requester.getId().equals(userId) && requester.getRole() == Role.ADMIN) {
+            throw new IllegalArgumentException("Un administrador no puede modificar su propio rol");
+        }
+        
         u.setRole(role);
         return userRepository.save(u);
     }

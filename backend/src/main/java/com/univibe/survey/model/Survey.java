@@ -17,11 +17,14 @@ public class Survey {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
     private Event event;
 
     @Column(nullable = false)
     private String title;
+
+    @Column(nullable = false)
+    private boolean closed = false;
 
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("survey-questions")
@@ -33,6 +36,8 @@ public class Survey {
     public void setEvent(Event event) { this.event = event; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public boolean isClosed() { return closed; }
+    public void setClosed(boolean closed) { this.closed = closed; }
     public List<SurveyQuestion> getQuestions() { return questions; }
     public void setQuestions(List<SurveyQuestion> questions) { this.questions = questions; }
 }

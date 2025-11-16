@@ -11,6 +11,6 @@ export const fetchProfile = (signal?: AbortSignal) =>
   apiClient.get<User>('/api/users/me', { signal }).then((res) => res.data);
 
 export const updateProfile = (
-  payload: { name: string; preferredCategories: string[] },
+  payload: { name: string; preferredCategories: string[]; profilePictureUrl?: string },
   signal?: AbortSignal
 ) => apiClient.put<User>('/api/users/me', payload, { signal }).then((res) => res.data);

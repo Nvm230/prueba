@@ -14,6 +14,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.Optional;
 
@@ -68,13 +69,13 @@ public class EventController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
-    public Event create(@RequestBody EventCreateRequest req) {
+    public Event create(@RequestBody @Valid EventCreateRequest req) {
         Event event = new Event();
         event.setTitle(req.getTitle());
         event.setCategory(req.getCategory());
         event.setDescription(req.getDescription());
-        event.setFaculty(req.getFaculty());
-        event.setCareer(req.getCareer());
+        event.setFaculty(req.getFaculty() != null && !req.getFaculty().trim().isEmpty() ? req.getFaculty() : null);
+        event.setCareer(req.getCareer() != null && !req.getCareer().trim().isEmpty() ? req.getCareer() : null);
         event.setStartTime(req.getStartTime());
         event.setEndTime(req.getEndTime());
         return eventRepository.save(event);

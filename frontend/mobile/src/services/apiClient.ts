@@ -33,10 +33,37 @@ apiClient.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const data = error.response?.data as ErrorResponse | undefined;
+    
+    // Manejo de errores de autenticación
     if (status === 401) {
       await tokenStorage.remove();
     }
-    return Promise.reject({ ...error, message: data?.message ?? error.message ?? 'Network error', status });
+    
+    // Mensajes de error amigables según el código de estado
+    let message = 'Ocurrió un error inesperado';
+    if (data?.message) {
+      message = data.message;
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      message = 'La solicitud tardó demasiado. Por favor, verifica tu conexión e intenta nuevamente.';
+    } else if (error.message === 'Network Error' || !error.response) {
+      message = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+    } else if (status === 400) {
+      message = 'Los datos proporcionados no son válidos. Por favor, revisa la información.';
+    } else if (status === 403) {
+      message = 'No tienes permisos para realizar esta acción.';
+    } else if (status === 404) {
+      message = 'El recurso solicitado no fue encontrado.';
+    } else if (status === 409) {
+      message = 'Ya existe un recurso con estos datos.';
+    } else if (status === 500) {
+      message = 'Error interno del servidor. Por favor, intenta más tarde.';
+    } else if (status) {
+      message = `Error ${status}: ${error.message || 'Error desconocido'}`;
+    } else {
+      message = error.message ?? 'Network error';
+    }
+    
+    return Promise.reject({ ...error, message, status });
   }
 );
 

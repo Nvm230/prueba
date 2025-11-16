@@ -5,6 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UniVibe</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Polyfill para Request API - DEBE ejecutarse ANTES de cualquier otro script -->
+    <script>
+      // Ejecutar INMEDIATAMENTE y de forma SÍNCRONA antes de cualquier módulo
+      // NO usar async/defer - debe bloquear la ejecución hasta completarse
+      (function() {
+        'use strict';
+        try {
+          // Asegurar globalThis
+          if (typeof globalThis === 'undefined') {
+            if (typeof window !== 'undefined') {
+              window.globalThis = window;
+            } else if (typeof global !== 'undefined') {
+              global.globalThis = global;
+            } else {
+              (function() { this.globalThis = this; }).call(null);
+            }
+          }
+
+          // Polyfill Request si no existe
+          if (typeof globalThis.Request === 'undefined') {
+            if (typeof fetch !== 'undefined') {
+              var RequestPolyfill = function Request(input, init) {
+                if (typeof input === 'string') {
+                  this.url = input;
+                } else if (input && typeof input === 'object') {
+                  if (input instanceof URL) {
+                    this.url = input.href;
+                  } else if (input.url) {
+                    this.url = input.url;
+                  } else {
+                    this.url = String(input);
+                  }
+                } else {
+                  this.url = String(input);
+                }
+                
+                init = init || {};
+                this.method = (init.method || 'GET').toUpperCase();
+                this.headers = new Headers(init.headers || {});
+                this.body = init.body || null;
+                this.mode = init.mode || 'cors';
+                this.credentials = init.credentials || 'same-origin';
+                this.cache = init.cache || 'default';
+                this.redirect = init.redirect || 'follow';
+                this.referrer = init.referrer || 'about:client';
+                this.integrity = init.integrity || '';
+              };
+              
+              RequestPolyfill.prototype.clone = function() {
+                return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+              };
+
+              // Asignar a todos los lugares posibles
+              globalThis.Request = RequestPolyfill;
+              if (typeof window !== 'undefined') {
+                window.Request = RequestPolyfill;
+              }
+              if (typeof global !== 'undefined') {
+                global.Request = RequestPolyfill;
+              }
+            } else {
+              // Fallback si fetch tampoco existe
+              console.warn('Request and fetch are not available');
+              globalThis.Request = function Request() {
+                throw new Error('Request is not supported in this environment');
+              };
+            }
+          }
+        } catch (e) {
+          console.error('Error setting up Request polyfill:', e);
+        }
+      })();
+    </script>
   </head>
   <body class="antialiased bg-surface-light text-slate-900 dark:bg-surface-dark dark:text-slate-100">
     <div id="root"></div>

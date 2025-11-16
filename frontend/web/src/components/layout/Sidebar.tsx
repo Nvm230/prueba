@@ -7,7 +7,10 @@ import {
   ClipboardDocumentListIcon,
   UserCircleIcon,
   Cog6ToothIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  QrCodeIcon,
+  UserPlusIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import classNames from 'classnames';
@@ -15,9 +18,12 @@ import classNames from 'classnames';
 const navigation = [
   { name: 'Overview', to: '/', icon: HomeIcon },
   { name: 'Events', to: '/events', icon: CalendarDaysIcon },
+  { name: 'Check-in', to: '/checkin', icon: QrCodeIcon },
   { name: 'Notifications', to: '/notifications', icon: BellAlertIcon },
   { name: 'Groups', to: '/groups', icon: UserGroupIcon },
   { name: 'Surveys', to: '/surveys', icon: ClipboardDocumentListIcon },
+  { name: 'Friends', to: '/friends', icon: UserPlusIcon },
+  { name: 'Chat', to: '/chat', icon: ChatBubbleLeftRightIcon },
   { name: 'Profile', to: '/profile', icon: UserCircleIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon }
 ];

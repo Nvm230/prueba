@@ -15,17 +15,28 @@ export const fetchSurvey = (surveyId: number, signal?: AbortSignal) =>
 export const createSurvey = (
   payload: { eventId: number; title: string; questions: string[] },
   signal?: AbortSignal
-) =>
-  apiClient
-    .post('/api/surveys', null, {
-      params: payload,
+) => {
+  // Enviar como form data para que Spring Boot pueda parsear el array correctamente
+  const formData = new URLSearchParams();
+  formData.append('eventId', payload.eventId.toString());
+  formData.append('title', payload.title);
+  payload.questions.forEach((question) => {
+    formData.append('questions', question);
+  });
+  
+  return apiClient
+    .post('/api/surveys', formData.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       signal
     })
     .then((res) => res.data as { surveyId: number; questionIds: number[] });
+};
 
 export const answerSurveyQuestion = (
   questionId: number,
-  payload: { userId: number; answer: string },
+  payload: { answer: string },
   signal?: AbortSignal
 ) =>
   apiClient
@@ -34,3 +45,13 @@ export const answerSurveyQuestion = (
       signal
     })
     .then((res) => res.data as { id: number; questionId: number; respondentId: number; answer: string });
+
+export const fetchSurveyAnswers = (surveyId: number, signal?: AbortSignal) =>
+  apiClient
+    .get(`/api/surveys/${surveyId}/answers`, { signal })
+    .then((res) => res.data);
+
+export const closeSurvey = (surveyId: number, signal?: AbortSignal) =>
+  apiClient
+    .post(`/api/surveys/${surveyId}/close`, {}, { signal })
+    .then((res) => res.data as { surveyId: number; closed: boolean });

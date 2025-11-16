@@ -56,10 +56,12 @@ const EventDetailScreen = () => {
         <Text style={styles.detailLabel}>Etiquetas</Text>
         <Text style={styles.detailValue}>{event.tags.join(', ') || 'Sin etiquetas'}</Text>
       </View>
-      <PrimaryButton
-        title={mutation.isPending ? 'Generando…' : 'Registrar y generar QR'}
-        onPress={() => mutation.mutate()}
-      />
+      {event.status !== 'FINISHED' && (
+        <PrimaryButton
+          title={mutation.isPending ? 'Generando…' : 'Registrar y generar QR'}
+          onPress={() => mutation.mutate()}
+        />
+      )}
       {ticket && (
         <View style={styles.ticket}>
           <Image source={{ uri: `data:image/png;base64,${ticket}` }} style={styles.qr} />

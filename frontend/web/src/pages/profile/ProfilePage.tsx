@@ -1,24 +1,38 @@
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import TextField from '@/components/forms/TextField';
 import SubmitButton from '@/components/forms/SubmitButton';
+import ImageUpload from '@/components/forms/ImageUpload';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
+import ProfileCard from '@/components/social/ProfileCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useEffect, useState } from 'react';
 import { updateProfile } from '@/services/authService';
 import { useToast } from '@/contexts/ToastContext';
 
-const categories = ['Technology', 'Wellness', 'Sports', 'Entrepreneurship', 'Art', 'Science'];
+const categories = ['Technology', 'Wellness', 'Sports', 'Entrepreneurship', 'Art', 'Science', 'Education', 'Networking'];
 
-type FormValues = {
-  name: string;
-  preferredCategories: string[];
-};
+const profileSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100, 'El nombre es demasiado largo'),
+  preferredCategories: z.array(z.string()).optional()
+});
+
+type FormValues = z.infer<typeof profileSchema>;
 
 const ProfilePage = () => {
   const { user, refreshProfile } = useAuth();
   const { pushToast } = useToast();
-  const { register, handleSubmit, reset } = useForm<FormValues>({
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(user?.profilePictureUrl || null);
+  
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<FormValues>({
+    resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name ?? '',
       preferredCategories: user?.preferredCategories ?? []
@@ -27,7 +41,8 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (user) {
-      reset({ name: user.name, preferredCategories: user.preferredCategories });
+      reset({ name: user.name, preferredCategories: user.preferredCategories || [] });
+      setProfilePictureUrl(user.profilePictureUrl || null);
     }
   }, [user, reset]);
 
@@ -37,53 +52,107 @@ const ProfilePage = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await updateProfile(values);
+      await updateProfile({
+        ...values,
+        profilePictureUrl: profilePictureUrl || undefined
+      });
       await refreshProfile();
-      pushToast({ type: 'success', title: 'Perfil actualizado', description: 'Tus preferencias fueron guardadas.' });
+      pushToast({
+        type: 'success',
+        title: 'Perfil actualizado',
+        description: 'Tus preferencias fueron guardadas exitosamente.'
+      });
       reset(values);
     } catch (error: any) {
-      pushToast({ type: 'error', title: 'Error al actualizar', description: error.message });
+      pushToast({
+        type: 'error',
+        title: 'Error al actualizar',
+        description: error.message || 'No se pudo actualizar el perfil. Intenta nuevamente.'
+      });
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Perfil' }]} />
+      
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-6 shadow-soft">
-          <div className="text-xs uppercase tracking-wide text-slate-400">Resumen</div>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{user.name}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{user.email}</p>
-          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Rol: {user.role}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Puntos gamificados: {user.points}</p>
-        </div>
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="lg:col-span-2 rounded-3xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-6 space-y-4 shadow-soft"
-        >
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Editar perfil</h2>
-          <TextField label="Nombre" defaultValue={user.name} {...register('name')} />
+        {/* Profile Card with QR */}
+        <ProfileCard />
+
+        {/* Edit Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 card space-y-6">
           <div>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Categorías preferidas</span>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Editar Perfil</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Actualiza tu información personal y preferencias
+            </p>
+          </div>
+
+          {/* Profile Picture Upload */}
+          <ImageUpload
+            currentImageUrl={user.profilePictureUrl}
+            onImageChange={(url) => setProfilePictureUrl(url)}
+            label="Foto de Perfil"
+            maxSizeMB={5}
+          />
+
+          <TextField
+            label="Nombre completo"
+            defaultValue={user.name}
+            {...register('name')}
+            error={errors.name?.message}
+            required
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-3">
+              Categorías Preferidas
+            </label>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              Selecciona las categorías de eventos que más te interesan
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {categories.map((category) => {
-                const selected = user.preferredCategories.includes(category);
+                const selected = user.preferredCategories?.includes(category) || false;
                 return (
-                  <label key={category} className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <label
+                    key={category}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-300 dark:hover:border-primary-700 cursor-pointer transition-colors"
+                  >
                     <input
                       type="checkbox"
                       value={category}
                       defaultChecked={selected}
                       {...register('preferredCategories')}
-                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 focus:ring-offset-0"
                     />
-                    {category}
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{category}</span>
                   </label>
                 );
               })}
             </div>
+            {errors.preferredCategories && (
+              <p className="mt-2 text-xs text-error-500">{errors.preferredCategories.message}</p>
+            )}
           </div>
-          <SubmitButton className="w-full sm:w-auto">Guardar cambios</SubmitButton>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => {
+                reset();
+                setProfilePictureUrl(user.profilePictureUrl || null);
+              }}
+              className="btn-secondary flex-1 sm:flex-none"
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </button>
+            <SubmitButton className="flex-1 sm:flex-none" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            </SubmitButton>
+          </div>
         </form>
       </div>
     </div>

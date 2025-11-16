@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { fetchUsers, updateUserRole } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/hooks/useAuth';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import PaginationControls from '@/components/data/PaginationControls';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
@@ -12,6 +13,7 @@ import TextField from '@/components/forms/TextField';
 const AdminUsersPage = () => {
   const [params, setParams] = useSearchParams();
   const { pushToast } = useToast();
+  const { user: currentUser } = useAuth();
 
   const page = Number(params.get('page') ?? 0);
   const size = Number(params.get('size') ?? 10);
@@ -90,11 +92,17 @@ const AdminUsersPage = () => {
                         label=""
                         value={user.role}
                         onChange={(event) => handleRoleChange(user.id, event.target.value)}
+                        disabled={currentUser?.id === user.id && currentUser?.role === 'ADMIN' && user.role === 'ADMIN'}
                       >
                         <option value="USER">USER</option>
                         <option value="SERVER">SERVER</option>
                         <option value="ADMIN">ADMIN</option>
                       </SelectField>
+                      {currentUser?.id === user.id && currentUser?.role === 'ADMIN' && user.role === 'ADMIN' && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          No puedes modificar tu propio rol
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-300">{user.points}</td>
                   </tr>

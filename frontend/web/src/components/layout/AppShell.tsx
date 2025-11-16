@@ -14,7 +14,7 @@ const AppShell: React.FC<React.PropsWithChildren> = ({ children }) => {
   const isAuthRoute = useMemo(() => AUTH_ROUTES.includes(location.pathname), [location.pathname]);
 
   if (!user && isAuthRoute) {
-    return <div className="min-h-screen flex items-center justify-center bg-surface-light dark:bg-surface-dark">{children}</div>;
+    return <>{children}</>;
   }
 
   if (!user) {

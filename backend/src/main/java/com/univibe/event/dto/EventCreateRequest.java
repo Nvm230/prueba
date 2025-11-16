@@ -1,14 +1,26 @@
 package com.univibe.event.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 
 public class EventCreateRequest {
+    @NotBlank(message = "Title is required")
     private String title;
+    
+    @NotBlank(message = "Category is required")
     private String category;
+    
+    @NotBlank(message = "Description is required")
     private String description;
+    
     private String faculty;
     private String career;
+    
+    @NotNull(message = "Start time is required")
     private Instant startTime;
+    
+    @NotNull(message = "End time is required")
     private Instant endTime;
 
     public String getTitle() { return title; }

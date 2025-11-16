@@ -3,6 +3,7 @@ package com.univibe.notification.web;
 import com.univibe.common.dto.PageResponse;
 import com.univibe.notification.model.Notification;
 import com.univibe.notification.repo.NotificationRepository;
+import com.univibe.notification.service.MailService;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -20,11 +21,13 @@ public class NotificationController {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MailService mailService;
 
-    public NotificationController(NotificationRepository notificationRepository, UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
+    public NotificationController(NotificationRepository notificationRepository, UserRepository userRepository, SimpMessagingTemplate messagingTemplate, MailService mailService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
+        this.mailService = mailService;
     }
 
     @GetMapping("/{userId}")
@@ -42,14 +45,26 @@ public class NotificationController {
 
     @PostMapping("/{userId}")
     @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
-    public Notification send(@PathVariable Long userId, @RequestParam String title, @RequestParam String message) {
+    public Notification send(
+            @PathVariable Long userId, 
+            @RequestParam String title, 
+            @RequestParam String message,
+            @RequestParam(required = false, defaultValue = "false") boolean sendEmail) {
         User recipient = userRepository.findById(userId).orElseThrow();
         Notification n = new Notification();
         n.setRecipient(recipient);
         n.setTitle(title);
         n.setMessage(message);
         notificationRepository.save(n);
+        
+        // Enviar por WebSocket en tiempo real
         messagingTemplate.convertAndSend("/queue/notifications." + userId, n);
+        
+        // Enviar por email solo si está habilitado
+        if (sendEmail) {
+            mailService.send(recipient.getEmail(), title, message);
+        }
+        
         return n;
     }
 }

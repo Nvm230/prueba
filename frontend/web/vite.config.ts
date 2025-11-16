@@ -9,8 +9,44 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  define: {
+    global: 'globalThis',
+    'process.env': {}
+  },
   server: {
     port: 5173,
-    open: true
+    host: '0.0.0.0', // Permitir acceso desde fuera del contenedor
+    open: false // No abrir navegador automáticamente (no funciona en Docker)
+  },
+  build: {
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    minify: false, // Deshabilitar minificación temporalmente para debug
+    sourcemap: false,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suprimir advertencias de "vitalapi" y otros mensajes de consola en producción
+        if (warning.message && (
+          warning.message.includes('vitalapi') || 
+          warning.message.includes('vitalApi') ||
+          warning.message.includes('VitalApi')
+        )) {
+          return;
+        }
+        warn(warning);
+      },
+      output: {
+        manualChunks: undefined,
+        format: 'es'
+      }
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      strictRequires: false
+    }
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2020'
+    }
   }
 });

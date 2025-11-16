@@ -42,6 +42,9 @@ public class User {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(columnDefinition = "TEXT")
+    private String profilePictureUrl;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -58,4 +61,6 @@ public class User {
     public void setPoints(int points) { this.points = points; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getProfilePictureUrl() { return profilePictureUrl; }
+    public void setProfilePictureUrl(String profilePictureUrl) { this.profilePictureUrl = profilePictureUrl; }
 }

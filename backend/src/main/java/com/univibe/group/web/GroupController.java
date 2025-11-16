@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -44,8 +46,10 @@ public class GroupController {
     }
 
     @PostMapping
-    public Group create(@RequestParam @NotBlank String name, @RequestParam Long ownerId) {
-        User owner = userRepository.findById(ownerId).orElseThrow();
+    @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
+    public Group create(Authentication auth, @RequestParam @NotBlank String name) {
+        String email = (String) auth.getPrincipal();
+        User owner = userRepository.findByEmail(email).orElseThrow();
         Group g = new Group();
         g.setName(name);
         g.setOwner(owner);

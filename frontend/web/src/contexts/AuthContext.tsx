@@ -3,6 +3,7 @@ import { storage, tokenStorageKey } from '@/utils/storage';
 import { fetchProfile, login as loginRequest, register as registerRequest } from '@/services/authService';
 import { User } from '@/types';
 import { useToast } from './ToastContext';
+import { presenceService } from '@/services/presenceService';
 
 interface AuthContextValue {
   user: User | null;
@@ -46,6 +47,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  // Inicializar servicio de presencia cuando el usuario está autenticado
+  useEffect(() => {
+    if (user) {
+      // Conectar al servicio de presencia (sin callback específico, solo para mantener la conexión)
+      const disconnectPresence = presenceService.connect(() => {});
+      return () => {
+        disconnectPresence();
+      };
+    } else {
+      // Desconectar si el usuario cierra sesión
+      presenceService.disconnect();
+    }
+  }, [user]);
 
   const login = useCallback(
     async ({ email, password }: { email: string; password: string }) => {
