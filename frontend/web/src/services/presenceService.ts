@@ -6,12 +6,15 @@ import { storage, tokenStorageKey } from '@/utils/storage';
 const getWsBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_WS_BASE_URL;
   if (envUrl && envUrl !== '') {
+    console.log('[WS] Using WS_BASE_URL from env:', envUrl);
     return envUrl;
   }
+  console.warn('[WS] VITE_WS_BASE_URL not found, using default:', 'http://localhost:8080');
   return 'http://localhost:8080';
 };
 
 const WS_BASE_URL = getWsBaseUrl();
+console.log('[WS] Final WS_BASE_URL:', WS_BASE_URL);
 
 export interface PresenceUpdate {
   userId: number;

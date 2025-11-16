@@ -1,7 +1,23 @@
-if (typeof window !== 'undefined') {
-  if (typeof globalThis.Request === 'undefined') {
-    if (typeof fetch !== 'undefined') {
-      (globalThis as any).Request = class Request {
+// Polyfill para Request y Response - debe ejecutarse ANTES de cualquier otro código
+// Este archivo se importa PRIMERO en main.tsx
+(function() {
+  'use strict';
+  
+  // Asegurar que globalThis existe
+  if (typeof globalThis === 'undefined') {
+    if (typeof window !== 'undefined') {
+      (window as any).globalThis = window;
+    } else if (typeof global !== 'undefined') {
+      (global as any).globalThis = global;
+    } else if (typeof self !== 'undefined') {
+      (self as any).globalThis = self;
+    }
+  }
+
+  // Polyfill para Request - FORZAR siempre, incluso si existe
+  // Algunas dependencias pueden intentar desestructurar Request de módulos undefined
+  if (typeof fetch !== 'undefined') {
+      const RequestPolyfill = class Request {
         url: string;
         method: string;
         headers: Headers;
@@ -18,8 +34,10 @@ if (typeof window !== 'undefined') {
             this.url = input;
           } else if (input instanceof URL) {
             this.url = input.href;
+          } else if (input && typeof input === 'object' && 'url' in input) {
+            this.url = (input as any).url;
           } else {
-            this.url = input.url;
+            throw new TypeError('Failed to construct \'Request\': Invalid input');
           }
 
           this.method = (init?.method || 'GET').toUpperCase();
@@ -38,23 +56,64 @@ if (typeof window !== 'undefined') {
         }
       };
 
-      (window as any).Request = (globalThis as any).Request;
+      // FORZAR asignación a todos los contextos posibles - sobrescribir si existe
+      (globalThis as any).Request = RequestPolyfill;
+      if (typeof window !== 'undefined') {
+        (window as any).Request = RequestPolyfill;
+        try {
+          Object.defineProperty(window, 'Request', {
+            value: RequestPolyfill,
+            writable: true,
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          // Si falla, al menos asignar directamente
+          (window as any).Request = RequestPolyfill;
+        }
+      }
+      if (typeof self !== 'undefined') {
+        (self as any).Request = RequestPolyfill;
+      }
+      if (typeof global !== 'undefined') {
+        (global as any).Request = RequestPolyfill;
+      }
+      
+      // También asegurar que esté disponible como exportación de módulo común
+      if (typeof module !== 'undefined' && (module as any).exports) {
+        ((module as any).exports as any).Request = RequestPolyfill;
+      }
     } else {
       console.warn('Request and fetch are not available. Some features may not work.');
-      (globalThis as any).Request = class Request {
+      const RequestPolyfill = class Request {
         constructor() {
           throw new Error('Request is not supported in this environment');
         }
       };
-      (window as any).Request = (globalThis as any).Request;
+      (globalThis as any).Request = RequestPolyfill;
+      if (typeof window !== 'undefined') {
+        (window as any).Request = RequestPolyfill;
+      }
+      if (typeof self !== 'undefined') {
+        (self as any).Request = RequestPolyfill;
+      }
+      if (typeof global !== 'undefined') {
+        (global as any).Request = RequestPolyfill;
+      }
     }
-  }
 
+  // Polyfill para Response
   if (typeof globalThis.Response === 'undefined' && typeof fetch !== 'undefined') {
-    (globalThis as any).Response = class Response {
+    const ResponsePolyfill = class Response {
       constructor(public body: any, public init?: ResponseInit) {}
     };
-    (window as any).Response = (globalThis as any).Response;
+    (globalThis as any).Response = ResponsePolyfill;
+    if (typeof window !== 'undefined') {
+      (window as any).Response = ResponsePolyfill;
+    }
+    if (typeof self !== 'undefined') {
+      (self as any).Response = ResponsePolyfill;
+    }
   }
-}
+})();
 

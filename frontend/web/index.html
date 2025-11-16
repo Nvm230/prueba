@@ -6,68 +6,62 @@
     <title>UniVibe</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
+      // POLYFILL CRÍTICO - Debe ejecutarse ANTES de cualquier otro código
+      // Este script se ejecuta de forma síncrona y bloqueante
       (function() {
         'use strict';
-        try {
-          if (typeof globalThis === 'undefined') {
-            if (typeof window !== 'undefined') {
-              window.globalThis = window;
-            } else if (typeof global !== 'undefined') {
-              global.globalThis = global;
-            } else {
-              (function() { this.globalThis = this; }).call(null);
+        // Asegurar globalThis inmediatamente
+        if (typeof globalThis === 'undefined') {
+          if (typeof window !== 'undefined') window.globalThis = window;
+          else if (typeof global !== 'undefined') global.globalThis = global;
+          else if (typeof self !== 'undefined') self.globalThis = self;
+        }
+        
+        // Polyfill Request - FORZAR siempre, incluso si ya existe
+        if (typeof fetch !== 'undefined') {
+          var RequestImpl = function Request(input, init) {
+            if (!(this instanceof RequestImpl)) {
+              throw new TypeError('Failed to construct \'Request\': Please use the \'new\' operator');
+            }
+            this.url = typeof input === 'string' ? input : (input instanceof URL ? input.href : (input && input.url ? input.url : String(input)));
+            init = init || {};
+            this.method = (init.method || 'GET').toUpperCase();
+            this.headers = new Headers(init.headers || {});
+            this.body = init.body !== undefined ? init.body : null;
+            this.mode = init.mode || 'cors';
+            this.credentials = init.credentials || 'same-origin';
+            this.cache = init.cache || 'default';
+            this.redirect = init.redirect || 'follow';
+            this.referrer = init.referrer || 'about:client';
+            this.integrity = init.integrity || '';
+          };
+          RequestImpl.prototype.clone = function() {
+            return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+          };
+          
+          // FORZAR en todos los contextos - SOBRESCRIBIR si existe
+          globalThis.Request = RequestImpl;
+          if (typeof window !== 'undefined') {
+            window.Request = RequestImpl;
+            try { 
+              Object.defineProperty(window, 'Request', { 
+                value: RequestImpl, 
+                writable: true, 
+                configurable: true,
+                enumerable: true
+              }); 
+            } catch(e) {
+              // Si falla, al menos asignar directamente
+              window.Request = RequestImpl;
             }
           }
-
-          if (typeof globalThis.Request === 'undefined') {
-            if (typeof fetch !== 'undefined') {
-              var RequestPolyfill = function Request(input, init) {
-                if (typeof input === 'string') {
-                  this.url = input;
-                } else if (input && typeof input === 'object') {
-                  if (input instanceof URL) {
-                    this.url = input.href;
-                  } else if (input.url) {
-                    this.url = input.url;
-                  } else {
-                    this.url = String(input);
-                  }
-                } else {
-                  this.url = String(input);
-                }
-                
-                init = init || {};
-                this.method = (init.method || 'GET').toUpperCase();
-                this.headers = new Headers(init.headers || {});
-                this.body = init.body || null;
-                this.mode = init.mode || 'cors';
-                this.credentials = init.credentials || 'same-origin';
-                this.cache = init.cache || 'default';
-                this.redirect = init.redirect || 'follow';
-                this.referrer = init.referrer || 'about:client';
-                this.integrity = init.integrity || '';
-              };
-              
-              RequestPolyfill.prototype.clone = function() {
-                return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
-              };
-
-              globalThis.Request = RequestPolyfill;
-              if (typeof window !== 'undefined') {
-                window.Request = RequestPolyfill;
-              }
-              if (typeof global !== 'undefined') {
-                global.Request = RequestPolyfill;
-              }
-            } else {
-              console.warn('Request and fetch are not available');
-              globalThis.Request = function Request() {
-                throw new Error('Request is not supported in this environment');
-              };
-            }
+          if (typeof self !== 'undefined') self.Request = RequestImpl;
+          if (typeof global !== 'undefined') global.Request = RequestImpl;
+          
+          // Asegurar que también esté disponible como exportación de módulo común
+          if (typeof module !== 'undefined' && module.exports) {
+            module.exports.Request = RequestImpl;
           }
-        } catch (e) {
-          console.error('Error setting up Request polyfill:', e);
         }
       })();
     </script>

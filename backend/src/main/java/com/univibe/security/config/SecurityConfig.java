@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @Configuration
@@ -39,17 +40,40 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of(
-                "http://localhost:5173", 
-                "http://127.0.0.1:5173",
-                "http://localhost",
-                "http://localhost:80",
-                "http://127.0.0.1",
-                "http://127.0.0.1:80"
-        ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Leer orígenes del entorno o usar los por defecto
+        String allowedOriginsEnv = System.getenv().getOrDefault("CORS_ALLOWED_ORIGINS", "");
+        List<String> allowedOrigins;
+        
+        if (allowedOriginsEnv.isEmpty() || "*".equals(allowedOriginsEnv)) {
+            // Orígenes por defecto
+            allowedOrigins = List.of(
+                    "http://localhost:5173", 
+                    "http://127.0.0.1:5173",
+                    "https://localhost:5173",
+                    "https://127.0.0.1:5173",
+                    "http://localhost",
+                    "http://localhost:80",
+                    "http://127.0.0.1",
+                    "http://127.0.0.1:80",
+                    "https://uni-vibe.com",
+                    "https://www.uni-vibe.com"
+            );
+        } else {
+            // Dividir por comas y limpiar espacios
+            allowedOrigins = List.of(allowedOriginsEnv.split(","))
+                    .stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+        }
+        
+        // Usar setAllowedOriginPatterns para mejor compatibilidad con proxies
+        // Esto permite que funcione tanto con HTTP como HTTPS
+        config.setAllowedOriginPatterns(allowedOrigins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // Cache preflight por 1 hora
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -74,6 +98,18 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .httpBasic(basic -> basic.disable())
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Unauthorized\"}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Forbidden\"}");
+                })
+            )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
