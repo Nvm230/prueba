@@ -52,3 +52,4 @@ supervisord.log
 # Vite
 frontend/web/.vite/
 
+supervisord.pid

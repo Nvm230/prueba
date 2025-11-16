@@ -54,9 +54,7 @@ public class SecurityConfig {
                     "http://localhost",
                     "http://localhost:80",
                     "http://127.0.0.1",
-                    "http://127.0.0.1:80",
-                    "https://uni-vibe.com",
-                    "https://www.uni-vibe.com"
+                    "http://127.0.0.1:80"
             );
         } else {
             // Dividir por comas y limpiar espacios

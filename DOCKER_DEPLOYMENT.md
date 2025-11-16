@@ -1,6 +1,6 @@
 # Guía de Despliegue con Docker
 
-Este proyecto está configurado para desplegarse completamente usando Docker Compose, tanto en local como en AWS.
+Este proyecto está configurado para desplegarse completamente usando Docker Compose en local.
 
 ## Estructura
 
@@ -99,72 +99,46 @@ El frontend usa **Nginx como reverse proxy** para:
 
 Esto permite que:
 - El frontend y backend se comuniquen dentro de la red Docker sin problemas de CORS
-- Todo funcione igual en local y en AWS sin cambiar configuración
 - El frontend use URLs relativas (`/api` y `/ws`) que funcionan con cualquier dominio
 
-## Despliegue en AWS
+## Configuraciones Disponibles
 
-### Opción 1: EC2 con Docker Compose (Recomendado para empezar)
+### Desarrollo Local HTTP
 
-1. **Crear una instancia EC2** (Ubuntu 22.04 LTS recomendado)
-2. **Instalar Docker y Docker Compose**:
-   ```bash
-   sudo apt update
-   sudo apt install docker.io docker-compose-plugin -y
-   sudo usermod -aG docker $USER
-   # Cerrar sesión y volver a entrar
-   ```
-
-3. **Subir el proyecto**:
-   ```bash
-   # Desde tu máquina local
-   scp -r /ruta/al/proyecto usuario@tu-ec2-ip:/home/usuario/
-   
-   # O clonar desde Git
-   git clone tu-repositorio
-   ```
-
-4. **Configurar firewall**:
-   - En EC2 Security Groups, abrir puertos:
-     - 80 (HTTP)
-     - 443 (HTTPS, si usas certificado SSL)
-     - 8080 (solo necesario si expones el backend directamente)
-
-5. **Levantar servicios**:
-   ```bash
-   cd proyecto
-   docker compose up -d
-   ```
-
-6. **Acceder**: `http://tu-ec2-ip-publica`
-
-### Opción 2: AWS ECS / EKS (Producción)
-
-Para producción a mayor escala, considera usar:
-- **AWS ECS** con Fargate para contenedores sin gestión de servidores
-- **AWS EKS** para Kubernetes
-- **AWS ALB** (Application Load Balancer) para balanceo y terminación SSL
-- **RDS** para la base de datos en lugar de contenedor Docker
-
-### Opción 3: AWS Elastic Beanstalk (Intermedio)
-
-AWS Elastic Beanstalk puede gestionar Docker Compose, pero requiere configuración adicional.
-
-## HTTPS / SSL
-
-Para producción, necesitarás un certificado SSL. Opciones:
-
-1. **Usar AWS Certificate Manager (ACM)** con ALB
-2. **Usar Let's Encrypt** con Certbot en Nginx
-3. **Usar Cloudflare** como proxy inverso
-
-### Configuración básica con Let's Encrypt
+Para desarrollo local sin HTTPS:
 
 ```bash
-# En la instancia EC2
-sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d tu-dominio.com
+docker compose -f docker-compose.local-http.yml up -d
 ```
+
+Accede en: `http://localhost:5173`
+
+### Desarrollo Local HTTPS
+
+Para desarrollo local con HTTPS (requiere certificados mkcert):
+
+```bash
+# Primero generar certificados (si no los tienes)
+cd frontend/web
+mkcert localhost 127.0.0.1 ::1
+mv localhost+2.pem localhost+2-key.pem .
+
+# Luego levantar servicios
+cd ../..
+docker compose -f docker-compose.local-https.yml up -d
+```
+
+Accede en: `https://localhost:5173`
+
+### Producción Local
+
+Para producción local (build optimizado):
+
+```bash
+docker compose up -d
+```
+
+Accede en: `http://localhost`
 
 ## Monitoreo y Logs
 
