@@ -79,7 +79,8 @@ public class GroupChannelController {
     // Verificar que el usuario puede enviar mensajes al grupo
     private boolean canSendToGroup(Group group, User user) {
         // Si el chat está habilitado para miembros, cualquier miembro puede enviar
-        if (Boolean.TRUE.equals(group.getMembersCanChat())) {
+        Boolean membersCanChat = group.getMembersCanChat();
+        if (membersCanChat != null && membersCanChat) {
             return isMember(group, user);
         }
         // Si no está habilitado, solo owner/admin/server pueden enviar

@@ -237,12 +237,14 @@ public class GroupController {
             return ResponseEntity.status(403).body(Map.of("error", "Solo el creador del grupo o un administrador pueden modificar esta configuración"));
         }
         
-        group.setMembersCanChat(!Boolean.TRUE.equals(group.getMembersCanChat()));
+        Boolean currentValue = group.getMembersCanChat();
+        Boolean newValue = (currentValue == null || !currentValue) ? true : false;
+        group.setMembersCanChat(newValue);
         groupRepository.save(group);
         
         return ResponseEntity.ok(Map.of(
-                "membersCanChat", group.getMembersCanChat(),
-                "message", group.getMembersCanChat() 
+                "membersCanChat", newValue,
+                "message", newValue 
                     ? "Chat habilitado para todos los miembros" 
                     : "Chat restringido a administradores"
         ));

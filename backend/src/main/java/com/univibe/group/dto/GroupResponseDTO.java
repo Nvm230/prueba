@@ -28,7 +28,8 @@ public class GroupResponseDTO {
         this.members = group.getMembers().stream()
                 .map(member -> new UserSummaryDTO(member.getId(), member.getName(), member.getEmail(), member.getProfilePictureUrl()))
                 .collect(Collectors.toList());
-        this.membersCanChat = group.getMembersCanChat();
+        // Manejar null por si la migración no se ha ejecutado o hay grupos antiguos
+        this.membersCanChat = group.getMembersCanChat() != null ? group.getMembersCanChat() : false;
     }
 
     public Long getId() { return id; }

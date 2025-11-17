@@ -28,7 +28,7 @@ public class Group {
             inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> members = new HashSet<>();
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "BOOLEAN DEFAULT false")
     private Boolean membersCanChat = false; // Por defecto solo owner/admin puede enviar mensajes
 
     public Long getId() { return id; }
