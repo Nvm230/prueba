@@ -5,10 +5,24 @@ import apiClient from './apiClient';
 import { PaginatedResponse } from '@/types';
 
 const getWsBaseUrl = (): string => {
+  // Detectar si estamos en producción (AWS) basándose en la URL actual
+  const isProduction = typeof window !== 'undefined' && 
+    (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
+  
+  // En producción, usar la URL base del sitio actual (Nginx hace proxy de /ws al backend)
+  if (isProduction) {
+    const baseUrl = window.location.origin;
+    return baseUrl;
+  }
+  
+  // En desarrollo, usar la variable de entorno o localhost como fallback
   const envUrl = import.meta.env.VITE_WS_BASE_URL;
   if (envUrl && envUrl !== '') {
-    return envUrl;
+    // Asegurarse de que no use ws:// o wss:// (SockJS necesita http:// o https://)
+    const normalizedUrl = envUrl.replace(/^wss?:\/\//, envUrl.startsWith('wss://') ? 'https://' : 'http://');
+    return normalizedUrl;
   }
+  
   return 'http://localhost:8080';
 };
 

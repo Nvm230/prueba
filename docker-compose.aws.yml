@@ -52,8 +52,10 @@ services:
       args:
         # Usar URL relativa o la IP pública con el puerto del frontend (Nginx hace proxy a /api/)
         # Cambiar 3.151.11.170 por tu IP pública de AWS
+        # IMPORTANTE: VITE_WS_BASE_URL debe usar http:// o https://, NO ws:// o wss://
+        # SockJS maneja la actualización a WebSocket internamente
         - VITE_API_BASE_URL=http://3.151.11.170:5173
-        - VITE_WS_BASE_URL=ws://3.151.11.170:5173
+        - VITE_WS_BASE_URL=http://3.151.11.170:5173
     container_name: univibe-frontend
     depends_on:
       - backend
