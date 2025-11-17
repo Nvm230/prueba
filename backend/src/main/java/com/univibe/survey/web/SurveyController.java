@@ -7,7 +7,9 @@ import java.util.Optional;
 import com.univibe.event.model.Event;
 import com.univibe.event.repo.EventRepository;
 import com.univibe.group.repo.GroupSurveyRepository;
+import com.univibe.group.model.GroupSurvey;
 import com.univibe.registration.repo.RegistrationRepository;
+import com.univibe.survey.dto.SurveyResponseDTO;
 import com.univibe.survey.model.Survey;
 import com.univibe.survey.model.SurveyAnswer;
 import com.univibe.survey.model.SurveyQuestion;
@@ -40,47 +42,56 @@ public class SurveyController {
     }
 
     @GetMapping
-    public List<Survey> list(@RequestParam Optional<Long> eventId, Authentication auth) {
+    @Transactional(readOnly = true)
+    public List<SurveyResponseDTO> list(@RequestParam Optional<Long> eventId, Authentication auth) {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
         boolean isAdmin = user.getRole().name().equals("ADMIN") || user.getRole().name().equals("SERVER");
+        List<Survey> surveys;
         
         if (eventId.isPresent()) {
             Long eId = eventId.get();
             // Si es admin, puede ver todas las encuestas del evento
             if (isAdmin) {
-                return surveyRepository.findByEventId(eId);
+                surveys = surveyRepository.findByEventId(eId);
+                return surveys.stream().map(SurveyResponseDTO::new).toList();
             }
             // Si no es admin, solo puede ver encuestas de eventos donde está registrado
             boolean isRegistered = registrationRepository.findByUserIdAndEventId(user.getId(), eId).isPresent();
             if (!isRegistered) {
                 return List.of(); // No registrado, no puede ver encuestas
             }
-            return surveyRepository.findByEventId(eId);
+            surveys = surveyRepository.findByEventId(eId);
+            return surveys.stream().map(SurveyResponseDTO::new).toList();
         }
         
         // Sin eventId: solo admins pueden ver todas las encuestas
         if (isAdmin) {
-            return surveyRepository.findAll();
+            surveys = surveyRepository.findAll();
+        } else {
+            // Usuarios normales: encuestas de eventos donde están registrados + encuestas de grupos donde son miembros
+            List<Survey> allSurveys = surveyRepository.findAll();
+            List<GroupSurvey> groupSurveys = groupSurveyRepository.findAll();
+            surveys = allSurveys.stream()
+                    .filter(s -> {
+                        // Si tiene evento, verificar registro
+                        if (s.getEvent() != null) {
+                            return registrationRepository.findByUserIdAndEventId(user.getId(), s.getEvent().getId()).isPresent();
+                        }
+                        // Si no tiene evento, es encuesta de grupo - verificar si está compartida en algún grupo del usuario
+                        return groupSurveys.stream()
+                                .anyMatch(gs -> gs.getSurvey().getId().equals(s.getId()) 
+                                        && (gs.getGroup().getOwner().getId().equals(user.getId()) 
+                                            || gs.getGroup().getMembers().stream().anyMatch(m -> m.getId().equals(user.getId()))));
+                    })
+                    .toList();
         }
-        // Usuarios normales: encuestas de eventos donde están registrados + encuestas de grupos donde son miembros
-        return surveyRepository.findAll().stream()
-                .filter(s -> {
-                    // Si tiene evento, verificar registro
-                    if (s.getEvent() != null) {
-                        return registrationRepository.findByUserIdAndEventId(user.getId(), s.getEvent().getId()).isPresent();
-                    }
-                    // Si no tiene evento, es encuesta de grupo - verificar si está compartida en algún grupo del usuario
-                    return groupSurveyRepository.findAll().stream()
-                            .anyMatch(gs -> gs.getSurvey().getId().equals(s.getId()) 
-                                    && (gs.getGroup().getOwner().getId().equals(user.getId()) 
-                                        || gs.getGroup().getMembers().stream().anyMatch(m -> m.getId().equals(user.getId()))));
-                })
-                .toList();
+        return surveys.stream().map(SurveyResponseDTO::new).toList();
     }
 
     @GetMapping("/{surveyId}")
-    public Survey get(@PathVariable Long surveyId, Authentication auth) {
+    @Transactional(readOnly = true)
+    public SurveyResponseDTO get(@PathVariable Long surveyId, Authentication auth) {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
         boolean isAdmin = user.getRole().name().equals("ADMIN") || user.getRole().name().equals("SERVER");
@@ -95,7 +106,7 @@ public class SurveyController {
             }
         }
         
-        return survey;
+        return new SurveyResponseDTO(survey);
     }
 
     @GetMapping("/{surveyId}/answers")
@@ -132,7 +143,7 @@ public class SurveyController {
             }
             
             for (String q : questions) {
-                if (q == null || q.trim().isEmpty()) {
+                if (q == null || q.trim().isEmpty() || q.trim().length() < 1) {
                     continue; // Skip empty questions
                 }
                 SurveyQuestion sq = new SurveyQuestion();
@@ -158,15 +169,21 @@ public class SurveyController {
     }
 
     @PostMapping("/{questionId}/answer")
+    @Transactional
     public Map<String, Object> answer(@PathVariable Long questionId,
                                       Authentication auth,
                                       @RequestParam String answer) {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
         
+        // Buscar la encuesta que contiene la pregunta
         Survey s = surveyRepository.findAll().stream()
-            .filter(sv -> sv.getQuestions().stream().anyMatch(q -> q.getId().equals(questionId)))
-            .findFirst().orElseThrow();
+            .filter(sv -> sv.getQuestions() != null && sv.getQuestions().stream().anyMatch(q -> q.getId() != null && q.getId().equals(questionId)))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
+        
+        SurveyQuestion question = s.getQuestions().stream()
+            .filter(q -> q.getId() != null && q.getId().equals(questionId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
         
         // Verificar que la encuesta no esté cerrada
         if (s.isClosed()) {
@@ -181,10 +198,6 @@ public class SurveyController {
             }
         }
         // Si no tiene evento, es una encuesta de grupo y cualquier miembro puede responder
-        
-        SurveyQuestion question = s.getQuestions().stream()
-            .filter(q -> q.getId().equals(questionId))
-            .findFirst().orElseThrow();
 
         // Verificar que no haya respondido ya esta pregunta
         boolean alreadyAnswered = answerRepository.findByQuestionId(questionId).stream()

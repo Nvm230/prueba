@@ -2,6 +2,8 @@ package com.univibe.social.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.univibe.common.dto.PageResponse;
+import com.univibe.notification.model.Notification;
+import com.univibe.notification.repo.NotificationRepository;
 import com.univibe.social.dto.PrivateMessageRequest;
 import com.univibe.social.dto.PrivateMessageResponse;
 import com.univibe.social.dto.UserInfo;
@@ -33,13 +35,15 @@ public class PrivateMessageController {
     private final FriendshipRepository friendshipRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final NotificationRepository notificationRepository;
 
-    public PrivateMessageController(PrivateMessageRepository messageRepository, UserRepository userRepository, FriendshipRepository friendshipRepository, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
+    public PrivateMessageController(PrivateMessageRepository messageRepository, UserRepository userRepository, FriendshipRepository friendshipRepository, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper, NotificationRepository notificationRepository) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.friendshipRepository = friendshipRepository;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.notificationRepository = notificationRepository;
     }
 
     @MessageMapping("/private.{receiverId}.send")
@@ -83,6 +87,18 @@ public class PrivateMessageController {
                 saved.getCreatedAt()
             );
 
+            // Crear notificación para el receptor
+            Notification notification = new Notification();
+            notification.setRecipient(receiver);
+            notification.setTitle("Nuevo mensaje de " + sender.getName());
+            notification.setMessage(request.getContent().length() > 100 
+                ? request.getContent().substring(0, 100) + "..." 
+                : request.getContent());
+            notificationRepository.save(notification);
+
+            // Enviar notificación por WebSocket
+            messagingTemplate.convertAndSend("/queue/notifications." + receiverId, notification);
+
             // Enviar por WebSocket a ambos usuarios
             messagingTemplate.convertAndSend("/queue/private." + sender.getId(), objectMapper.writeValueAsString(response));
             messagingTemplate.convertAndSend("/queue/private." + receiverId, objectMapper.writeValueAsString(response));
@@ -96,10 +112,14 @@ public class PrivateMessageController {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
 
-        List<User> partners = messageRepository.findConversationPartners(user.getId());
-        return partners.stream()
-            .map(partner -> {
-                long unreadCount = messageRepository.countUnreadMessages(user.getId(), partner.getId());
+        List<Long> partnerIds = messageRepository.findConversationPartnerIds(user.getId());
+        return partnerIds.stream()
+            .map(partnerId -> {
+                User partner = userRepository.findById(partnerId).orElse(null);
+                if (partner == null) {
+                    return null;
+                }
+                long unreadCount = messageRepository.countUnreadMessages(user.getId(), partnerId);
                 Map<String, Object> result = new HashMap<>();
                 result.put("userId", partner.getId());
                 result.put("name", partner.getName());
@@ -108,7 +128,20 @@ public class PrivateMessageController {
                 result.put("unreadCount", unreadCount);
                 return result;
             })
+            .filter(result -> result != null)
             .collect(Collectors.toList());
+    }
+
+    @GetMapping("/unread-count")
+    public Map<String, Long> getUnreadCount(Authentication auth) {
+        String email = (String) auth.getPrincipal();
+        User user = userRepository.findByEmail(email).orElseThrow();
+        
+        long totalUnread = messageRepository.countUnreadMessagesForUser(user.getId());
+        
+        Map<String, Long> result = new HashMap<>();
+        result.put("count", totalUnread);
+        return result;
     }
 
     @GetMapping("/conversation/{otherUserId}")

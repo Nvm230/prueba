@@ -4,9 +4,11 @@ import { storage, tokenStorageKey } from '@/utils/storage';
 
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && envUrl !== '') {
+  // Forzar el uso de localhost:8080 si no hay variable de entorno o si está configurada incorrectamente
+  if (envUrl && envUrl !== '' && !envUrl.includes('5173')) {
     return envUrl;
   }
+  // Siempre usar localhost:8080 como fallback
   return 'http://localhost:8080';
 };
 
@@ -14,6 +16,11 @@ const apiClient = axios.create({
   baseURL: getApiBaseUrl(),
   timeout: API_TIMEOUT
 });
+
+// Log para debugging (solo en desarrollo)
+if (import.meta.env.DEV) {
+  console.log('[API Client] Base URL:', apiClient.defaults.baseURL);
+}
 
 type ErrorResponse = {
   message?: string;
@@ -30,6 +37,19 @@ apiClient.interceptors.request.use((config) => {
     Accept: 'application/json',
     ...config.headers
   };
+  
+  // Forzar que la URL base sea siempre localhost:8080 si la petición es a /api/**
+  if (config.url && config.url.startsWith('/api/')) {
+    // Si la URL base contiene 5173, forzar a 8080
+    if (config.baseURL && config.baseURL.includes('5173')) {
+      config.baseURL = 'http://localhost:8080';
+    }
+    // Si no hay baseURL, establecerla
+    if (!config.baseURL) {
+      config.baseURL = 'http://localhost:8080';
+    }
+  }
+  
   return config;
 });
 

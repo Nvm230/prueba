@@ -120,6 +120,9 @@ export const getConversation = (
     })
     .then((res) => res.data);
 
+export const getUnreadMessageCount = (signal?: AbortSignal) =>
+  apiClient.get<{ count: number }>('/api/private-messages/unread-count', { signal }).then((res) => res.data);
+
 
 
 

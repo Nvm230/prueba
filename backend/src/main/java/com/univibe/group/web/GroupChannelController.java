@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.univibe.chat.dto.UserInfo;
 import com.univibe.common.dto.PageResponse;
 import com.univibe.event.model.Event;
+import com.univibe.event.model.EventVisibility;
+import com.univibe.event.service.EventSecurityService;
 import com.univibe.event.repo.EventRepository;
 import com.univibe.group.dto.GroupMessageRequest;
 import com.univibe.group.dto.GroupMessageResponse;
@@ -47,6 +49,7 @@ public class GroupChannelController {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final EventSecurityService eventSecurityService;
 
     public GroupChannelController(
             GroupRepository groupRepository,
@@ -58,7 +61,8 @@ public class GroupChannelController {
             SurveyRepository surveyRepository,
             UserRepository userRepository,
             SimpMessagingTemplate messagingTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            EventSecurityService eventSecurityService) {
         this.groupRepository = groupRepository;
         this.groupMessageRepository = groupMessageRepository;
         this.groupAnnouncementRepository = groupAnnouncementRepository;
@@ -69,6 +73,7 @@ public class GroupChannelController {
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.eventSecurityService = eventSecurityService;
     }
 
     // Verificar que el usuario es owner o SERVER
@@ -236,6 +241,9 @@ public class GroupChannelController {
         event.setCareer(req.getCareer() != null && !req.getCareer().trim().isEmpty() ? req.getCareer() : null);
         event.setStartTime(req.getStartTime());
         event.setEndTime(req.getEndTime());
+        event.setCreatedBy(sender);
+        event.setCheckInPassword(eventSecurityService.generateCheckInPassword());
+        event.setVisibility(EventVisibility.PRIVATE);
         Event savedEvent = eventRepository.save(event);
 
         // Compartir en el grupo
@@ -294,6 +302,7 @@ public class GroupChannelController {
                                 "title", ge.getEvent().getTitle(),
                                 "description", ge.getEvent().getDescription() != null ? ge.getEvent().getDescription() : "",
                                 "category", ge.getEvent().getCategory(),
+                                "visibility", ge.getEvent().getVisibility().name(),
                                 "status", ge.getEvent().getStatus().name(),
                                 "startTime", ge.getEvent().getStartTime() != null ? ge.getEvent().getStartTime().toString() : "",
                                 "endTime", ge.getEvent().getEndTime() != null ? ge.getEvent().getEndTime().toString() : ""

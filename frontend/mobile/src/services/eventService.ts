@@ -16,4 +16,4 @@ export const fetchEvent = (eventId: number, signal?: AbortSignal) =>
   apiClient.get<Event>(`/api/events/${eventId}`, { signal }).then((res) => res.data);
 
 export const registerForEvent = (eventId: number, signal?: AbortSignal) =>
-  apiClient.post<RegistrationResponse>(`/api/registrations/${eventId}`, null, { signal }).then((res) => res.data);
+  apiClient.post<RegistrationResponse>(`/api/registrations/events/${eventId}`, null, { signal }).then((res) => res.data);

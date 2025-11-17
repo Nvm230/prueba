@@ -1,5 +1,6 @@
 package com.univibe.event.dto;
 
+import com.univibe.event.model.EventVisibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -23,6 +24,8 @@ public class EventCreateRequest {
     @NotNull(message = "End time is required")
     private Instant endTime;
 
+    private EventVisibility visibility = EventVisibility.PUBLIC;
+
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getCategory() { return category; }
@@ -37,4 +40,6 @@ public class EventCreateRequest {
     public void setStartTime(Instant startTime) { this.startTime = startTime; }
     public Instant getEndTime() { return endTime; }
     public void setEndTime(Instant endTime) { this.endTime = endTime; }
+    public EventVisibility getVisibility() { return visibility; }
+    public void setVisibility(EventVisibility visibility) { this.visibility = visibility; }
 }

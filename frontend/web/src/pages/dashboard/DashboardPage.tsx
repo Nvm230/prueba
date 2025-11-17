@@ -22,8 +22,12 @@ const DashboardPage = () => {
   const { data: notifications, isLoading: loadingNotifications } = useQuery({
     queryKey: ['notifications', user?.id, { page: 0, size: 5 }],
     queryFn: ({ signal }) => fetchNotifications(user!.id, { page: 0, size: 5 }, signal),
-    enabled: Boolean(user)
+    enabled: Boolean(user),
+    refetchInterval: 5000 // Actualizar cada 5 segundos para reflejar cambios
   });
+
+  // Filtrar solo notificaciones no leídas para mostrar en "Notificaciones Recientes"
+  const unreadNotifications = notifications?.content?.filter(n => !n.readFlag) || [];
 
   if (!user) {
     return <LoadingOverlay message="Cargando perfil" />;
@@ -135,9 +139,9 @@ const DashboardPage = () => {
           </div>
           {loadingNotifications ? (
             <LoadingOverlay message="Cargando notificaciones" />
-          ) : notifications && notifications.content.length > 0 ? (
+          ) : unreadNotifications.length > 0 ? (
             <ul className="space-y-3">
-              {notifications.content.map((notification) => (
+              {unreadNotifications.map((notification) => (
                 <li
                   key={notification.id}
                   className="rounded-xl border border-slate-200 dark:border-slate-700 glass p-4 hover:shadow-md transition-shadow"

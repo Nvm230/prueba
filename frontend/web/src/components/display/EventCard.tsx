@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Event } from '@/types';
 import { formatDateTime } from '@/utils/formatters';
 import StatusBadge from '../data/StatusBadge';
-import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, MapPinIcon, UserIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
@@ -35,6 +35,11 @@ const EventCard: React.FC<Props> = ({ event }) => {
                 ID: {event.id}
               </span>
             )}
+            {event.visibility === 'PRIVATE' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                Privado
+              </span>
+            )}
           </div>
           {event.description && (
             <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
@@ -65,14 +70,22 @@ const EventCard: React.FC<Props> = ({ event }) => {
         ))}
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <ClockIcon className="h-3.5 w-3.5 flex-shrink-0" />
-        <span className="truncate">{formatDate(event.startTime)}</span>
-        {event.career && (
-          <>
-            <span className="text-slate-300 dark:text-slate-600">•</span>
-            <span className="truncate">{event.career}</span>
-          </>
+      <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <ClockIcon className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{formatDate(event.startTime)}</span>
+          {event.career && (
+            <>
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="truncate">{event.career}</span>
+            </>
+          )}
+        </div>
+        {event.createdBy && (
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <UserIcon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 dark:text-slate-500" />
+            <span className="truncate">Creado por: {event.createdBy.name}</span>
+          </div>
         )}
       </div>
     </Link>

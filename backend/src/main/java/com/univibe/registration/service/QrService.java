@@ -30,4 +30,10 @@ public class QrService {
         String raw = userId + ":" + eventId;
         return Base64.getUrlEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
+
+    public String generateEventRegistrationPayload(Long eventId) {
+        // QR único por evento para registro: formato "REGISTER:eventId"
+        String raw = "REGISTER:" + eventId;
+        return Base64.getUrlEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
 }

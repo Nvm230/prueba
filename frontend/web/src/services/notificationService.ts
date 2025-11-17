@@ -27,3 +27,9 @@ export const sendNotification = (
       signal
     })
     .then((res) => res.data);
+
+export const markNotificationAsRead = (notificationId: number, signal?: AbortSignal) =>
+  apiClient.put(`/api/notifications/${notificationId}/read`, null, { signal }).then((res) => res.data);
+
+export const markMessageNotificationsAsRead = (senderName: string, signal?: AbortSignal) =>
+  apiClient.put(`/api/notifications/mark-message-notifications-read/${encodeURIComponent(senderName)}`, null, { signal }).then((res) => res.data);

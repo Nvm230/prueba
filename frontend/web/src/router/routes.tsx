@@ -4,6 +4,7 @@ const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const EventsPage = lazy(() => import('@/pages/events/EventListPage'));
 const EventDetailPage = lazy(() => import('@/pages/events/EventDetailPage'));
 const CreateEventPage = lazy(() => import('@/pages/events/CreateEventPage'));
+const EditEventPage = lazy(() => import('@/pages/events/EditEventPage'));
 const CheckInPage = lazy(() => import('@/pages/checkin/CheckInPage'));
 const GroupsPage = lazy(() => import('@/pages/groups/GroupsPage'));
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'));
@@ -28,6 +29,8 @@ export const privateRoutes = [
   { path: '/events', element: <EventsPage /> },
   { path: '/events/new', element: <CreateEventPage /> },
   { path: '/events/:eventId', element: <EventDetailPage /> },
+  { path: '/events/:eventId/edit', element: <EditEventPage /> },
+  { path: '/qr-register', element: <CheckInPage /> },
   { path: '/checkin', element: <CheckInPage /> },
   { path: '/groups', element: <GroupsPage /> },
   { path: '/groups/:groupId', element: <GroupDetailPage /> },

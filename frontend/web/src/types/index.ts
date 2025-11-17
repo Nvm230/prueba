@@ -14,6 +14,13 @@ export interface User {
 
 export type EventStatus = 'PENDING' | 'LIVE' | 'FINISHED';
 
+export interface UserSummary {
+  id: number;
+  name: string;
+  email: string;
+  profilePictureUrl?: string;
+}
+
 export interface Event {
   id: number;
   title: string;
@@ -25,13 +32,19 @@ export interface Event {
   startTime: string;
   endTime: string;
   tags: string[];
+  createdBy?: UserSummary;
+  checkInPassword?: string;
+  visibility: 'PUBLIC' | 'PRIVATE';
+  groupRestricted?: boolean;
 }
 
 export interface Group {
   id: number;
   name: string;
-  owner: User;
-  members: User[];
+  owner: UserSummary;
+  privacy?: 'PUBLIC' | 'PRIVATE';
+  members: UserSummary[];
+  pendingJoinRequest?: boolean;
 }
 
 export interface SurveyAnswer {
@@ -43,14 +56,14 @@ export interface SurveyAnswer {
 export interface SurveyQuestion {
   id: number;
   text: string;
-  answers: SurveyAnswer[];
+  answers?: SurveyAnswer[] | null;
 }
 
 export interface Survey {
   id: number;
   title: string;
   event: Event | null;
-  questions: SurveyQuestion[];
+  questions?: SurveyQuestion[] | null;
   closed?: boolean;
 }
 
@@ -72,6 +85,8 @@ export interface Registration {
 export interface RegistrationResponse {
   registrationId: number;
   qrBase64: string;
+  status?: string;
+  checkedInAt?: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -84,4 +99,24 @@ export interface PaginatedResponse<T> {
 
 export interface AuthResponse {
   token: string;
+}
+
+export interface RegisteredUser {
+  id: number;
+  name: string;
+  email?: string; // Solo para admin/server/creador
+  status: string;
+  checkedInAt?: string;
+}
+
+export interface EventStats {
+  totalRegistrations: number;
+  checkedInCount: number;
+  pendingCheckInCount: number;
+  lastCheckInAt?: string;
+}
+
+export interface CheckInPasswordResponse {
+  password: string;
+  qrCodeBase64: string;
 }

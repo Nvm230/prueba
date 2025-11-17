@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { privateMessageService, PrivateMessageRequest } from '@/services/privateMessageService';
 import { getConversation, PrivateMessage } from '@/services/socialService';
+import { markMessageNotificationsAsRead } from '@/services/notificationService';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/display/Avatar';
 import { PaperClipIcon, PhotoIcon, DocumentIcon, XMarkIcon, CameraIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/contexts/ToastContext';
 import { presenceService, PresenceUpdate } from '@/services/presenceService';
 
@@ -35,6 +36,7 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
 }) => {
   const { user } = useAuth();
   const { pushToast } = useToast();
+  const queryClient = useQueryClient();
   const [messageInput, setMessageInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
@@ -49,6 +51,35 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
     queryFn: ({ signal }) => getConversation(otherUserId, { page: 0, size: 100 }, signal),
     enabled: Boolean(otherUserId && user)
   });
+
+  // Actualizar contador cuando se carga la conversación por primera vez y marcar notificaciones como leídas
+  const lastOtherUserIdRef = useRef<number | null>(null);
+  const hasUpdatedRef = useRef(false);
+  useEffect(() => {
+    // Solo actualizar cuando cambia la conversación y se carga por primera vez
+    if (otherUserId !== lastOtherUserIdRef.current) {
+      lastOtherUserIdRef.current = otherUserId;
+      hasUpdatedRef.current = false;
+    }
+    
+    // Marcar notificaciones como leídas cuando se carga la conversación (incluso si no hay mensajes)
+    if (!hasUpdatedRef.current && savedMessages !== undefined && user) {
+      hasUpdatedRef.current = true;
+      // Los mensajes se marcan como leídos automáticamente al cargar la conversación
+      // Solo invalidar el contador, no las conversaciones para evitar loops
+      queryClient.invalidateQueries({ queryKey: ['unread-messages-count', user.id] });
+      
+      // Marcar notificaciones de mensajes de este usuario como leídas
+      markMessageNotificationsAsRead(otherUserName)
+        .then(() => {
+          // Invalidar notificaciones para actualizar la UI
+          queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+        })
+        .catch((error) => {
+          console.error('Error marking message notifications as read:', error);
+        });
+    }
+  }, [otherUserId, savedMessages, queryClient, user, otherUserName]);
 
   // Sincronizar mensajes guardados con el estado local
   useEffect(() => {
@@ -97,6 +128,12 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
             }
             return [...prev, message];
           });
+          
+          // Si es un mensaje recibido (no enviado por mí), actualizar contador de mensajes sin leer
+          if (message.receiver.id === user.id && message.sender.id === otherUserId) {
+            // Solo invalidar el contador, no las conversaciones para evitar loops
+            queryClient.invalidateQueries({ queryKey: ['unread-messages-count', user.id] });
+          }
         }
       },
       (error) => {

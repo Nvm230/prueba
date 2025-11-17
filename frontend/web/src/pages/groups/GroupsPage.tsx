@@ -19,7 +19,8 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 const groupSchema = z.object({
-  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es demasiado largo')
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(100, 'El nombre es demasiado largo'),
+  privacy: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC')
 });
 
 type GroupFormValues = z.infer<typeof groupSchema>;
@@ -54,7 +55,8 @@ const GroupsPage = () => {
   });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<GroupFormValues>({
-    resolver: zodResolver(groupSchema)
+    resolver: zodResolver(groupSchema),
+    defaultValues: { privacy: 'PUBLIC' }
   });
 
   const groups = query.data?.content ?? [];
@@ -76,9 +78,23 @@ const GroupsPage = () => {
   const handleJoin = async (groupId: number) => {
     if (!user) return;
     try {
-      await joinGroup(groupId, { userId: user.id });
-      pushToast({ type: 'success', title: 'Unido al grupo', description: 'Ahora formas parte de la conversación.' });
-      query.refetch();
+      const response = await joinGroup(groupId, user.id);
+      if (response.status === 'JOINED') {
+        pushToast({ type: 'success', title: 'Unido al grupo', description: 'Ahora formas parte de la conversación.' });
+        query.refetch();
+      } else if (response.status === 'PENDING') {
+        pushToast({
+          type: 'info',
+          title: 'Solicitud enviada',
+          description: response.message || 'El creador debe aprobar tu ingreso.'
+        });
+      } else {
+        pushToast({
+          type: 'info',
+          title: 'Ya eres miembro',
+          description: response.message || 'Ya formas parte de este grupo.'
+        });
+      }
     } catch (error: any) {
       pushToast({ type: 'error', title: 'No se pudo unir', description: error.message });
     }
@@ -133,6 +149,18 @@ const GroupsPage = () => {
                 error={errors.name?.message}
                 required
               />
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+                  Privacidad
+                </label>
+                <select
+                  {...register('privacy')}
+                  className="input"
+                >
+                  <option value="PUBLIC">Público (cualquiera puede unirse)</option>
+                  <option value="PRIVATE">Privado (requiere aprobación)</option>
+                </select>
+              </div>
             </div>
             <div className="flex gap-3">
               <SubmitButton disabled={createMutation.isLoading} className="flex-1 sm:flex-none">

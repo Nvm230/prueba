@@ -20,7 +20,12 @@ import {
   createGroupEvent,
   shareEventToGroup,
   shareSurveyToGroup,
-  createGroupSurvey
+  createGroupSurvey,
+  joinGroup,
+  fetchGroupJoinRequests,
+  approveJoinRequest,
+  rejectJoinRequest,
+  deleteGroup
 } from '@/services/groupService';
 import { fetchSurveys } from '@/services/surveyService';
 import SelectField from '@/components/forms/SelectField';
@@ -57,8 +62,20 @@ const GroupDetailPage = () => {
   });
 
   // Calcular permisos basados en el grupo y usuario
-  const isMember = user && group && group.members.some((m) => m.id === user.id);
-  const canManage = user && group && (group.owner.id === user.id || user.role === 'SERVER' || user.role === 'ADMIN');
+  const members = group?.members ?? [];
+  const isMember = Boolean(user && members.some((m) => m.id === user.id));
+  const canManage = Boolean(
+    user &&
+      group &&
+      (group.owner.id === user.id || user.role === 'SERVER' || user.role === 'ADMIN')
+  );
+  const canDeleteGroup = user?.role === 'ADMIN';
+
+  const { data: joinRequests } = useQuery({
+    queryKey: ['groupJoinRequests', groupId],
+    queryFn: ({ signal }) => fetchGroupJoinRequests(Number(groupId!), signal),
+    enabled: Boolean(groupId) && canManage
+  });
 
   const { data: announcements } = useQuery({
     queryKey: ['groupAnnouncements', groupId],
@@ -167,6 +184,59 @@ const GroupDetailPage = () => {
     }
   });
 
+  const joinMutation = useMutation({
+    mutationFn: () => joinGroup(Number(groupId!), user?.id),
+    onSuccess: (response) => {
+      if (response.status === 'JOINED') {
+        pushToast({ type: 'success', title: 'Unido al grupo', description: response.message || 'Ya puedes participar.' });
+        queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      } else if (response.status === 'PENDING') {
+        pushToast({ type: 'info', title: 'Solicitud enviada', description: response.message || 'Espera la aprobación del creador.' });
+        queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      } else {
+        pushToast({ type: 'info', title: 'Ya eres miembro', description: response.message || 'Accede al contenido del grupo.' });
+      }
+    },
+    onError: (error: any) => {
+      pushToast({ type: 'error', title: 'No se pudo unir', description: error.message || 'Intenta nuevamente más tarde.' });
+    }
+  });
+
+  const approveRequestMutation = useMutation({
+    mutationFn: (requestId: number) => approveJoinRequest(Number(groupId!), requestId),
+    onSuccess: () => {
+      pushToast({ type: 'success', title: 'Solicitud aprobada', description: 'El miembro fue agregado al grupo.' });
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['groupJoinRequests', groupId] });
+    },
+    onError: (error: any) => {
+      pushToast({ type: 'error', title: 'Error', description: error.message || 'No se pudo aprobar la solicitud' });
+    }
+  });
+
+  const rejectRequestMutation = useMutation({
+    mutationFn: (requestId: number) => rejectJoinRequest(Number(groupId!), requestId),
+    onSuccess: () => {
+      pushToast({ type: 'info', title: 'Solicitud rechazada', description: 'El usuario fue notificado.' });
+      queryClient.invalidateQueries({ queryKey: ['groupJoinRequests', groupId] });
+    },
+    onError: (error: any) => {
+      pushToast({ type: 'error', title: 'Error', description: error.message || 'No se pudo rechazar la solicitud' });
+    }
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: () => deleteGroup(Number(groupId!)),
+    onSuccess: () => {
+      pushToast({ type: 'success', title: 'Grupo eliminado', description: 'El grupo se eliminó correctamente.' });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      navigate('/groups');
+    },
+    onError: (error: any) => {
+      pushToast({ type: 'error', title: 'No se pudo eliminar', description: error.message || 'Intenta nuevamente.' });
+    }
+  });
+
   if (groupLoading) {
     return <LoadingOverlay message="Cargando grupo" />;
   }
@@ -176,13 +246,31 @@ const GroupDetailPage = () => {
   }
 
   if (!isMember) {
+    const isPrivateGroup = group.privacy === 'PRIVATE';
     return (
       <div className="space-y-6 animate-fade-in">
         <Breadcrumbs items={[{ label: 'Grupos', to: '/groups' }, { label: group.name }]} />
-        <div className="card text-center">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">No eres miembro de este grupo</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-4">Únete al grupo para ver su contenido.</p>
-          <button onClick={() => navigate('/groups')} className="btn-primary">
+        <div className="card text-center space-y-4">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">No eres miembro de este grupo</h2>
+          <p className="text-slate-600 dark:text-slate-400">
+            Este grupo es {isPrivateGroup ? 'privado' : 'público'}. {isPrivateGroup
+              ? 'Necesitas solicitar acceso y esperar la aprobación del creador.'
+              : 'Puedes unirte inmediatamente para participar.'}
+          </p>
+          {group.pendingJoinRequest ? (
+            <p className="text-sm text-primary-600 font-medium">
+              Ya enviaste una solicitud. Espera la aprobación del creador.
+            </p>
+          ) : (
+            <button
+              onClick={() => joinMutation.mutate()}
+              className="btn-primary w-full md:w-auto"
+              disabled={joinMutation.isLoading}
+            >
+              {joinMutation.isLoading ? 'Procesando...' : isPrivateGroup ? 'Solicitar acceso' : 'Unirse al grupo'}
+            </button>
+          )}
+          <button onClick={() => navigate('/groups')} className="btn-secondary w-full md:w-auto">
             Volver a grupos
           </button>
         </div>
@@ -209,24 +297,86 @@ const GroupDetailPage = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               Administrado por {group.owner.name} • {group.members.length} miembros
             </p>
+            <span
+              className={`inline-flex items-center mt-2 text-xs font-semibold uppercase tracking-wide ${
+                group.privacy === 'PRIVATE' ? 'text-rose-500' : 'text-emerald-500'
+              }`}
+            >
+              {group.privacy === 'PRIVATE' ? 'Grupo privado' : 'Grupo público'}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            {group.members.slice(0, 5).map((member) => (
-              <Avatar
-                key={member.id}
-                user={{
-                  name: member.name,
-                  profilePictureUrl: member.profilePictureUrl
+          <div className="flex items-center gap-3">
+            {canDeleteGroup && (
+              <button
+                onClick={() => {
+                  if (deleteGroupMutation.isLoading) return;
+                  if (window.confirm('¿Seguro que deseas eliminar este grupo? Esta acción no se puede deshacer.')) {
+                    deleteGroupMutation.mutate();
+                  }
                 }}
-                size="sm"
-              />
-            ))}
-            {group.members.length > 5 && (
-              <span className="text-sm text-slate-500 dark:text-slate-400">+{group.members.length - 5}</span>
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-error-600 hover:bg-error-500 transition-colors disabled:opacity-60"
+                disabled={deleteGroupMutation.isLoading}
+              >
+                {deleteGroupMutation.isLoading ? 'Eliminando...' : 'Eliminar grupo'}
+              </button>
             )}
+            <div className="flex items-center gap-2">
+              {group.members.slice(0, 5).map((member) => (
+                <Avatar
+                  key={member.id}
+                  user={{
+                    name: member.name,
+                    profilePictureUrl: member.profilePictureUrl
+                  }}
+                  size="sm"
+                />
+              ))}
+              {group.members.length > 5 && (
+                <span className="text-sm text-slate-500 dark:text-slate-400">+{group.members.length - 5}</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {canManage && joinRequests && joinRequests.length > 0 && (
+        <div className="card border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-900/10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+              Solicitudes pendientes ({joinRequests.length})
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {joinRequests.map((request) => (
+              <div
+                key={request.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-white/70 dark:bg-slate-900/50 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{request.user.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{request.user.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="btn-secondary !text-slate-600"
+                    onClick={() => rejectRequestMutation.mutate(request.id)}
+                    disabled={rejectRequestMutation.isLoading || approveRequestMutation.isLoading}
+                  >
+                    Rechazar
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => approveRequestMutation.mutate(request.id)}
+                    disabled={approveRequestMutation.isLoading || rejectRequestMutation.isLoading}
+                  >
+                    Aprobar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="card">
@@ -390,6 +540,9 @@ const GroupDetailPage = () => {
                     <span className="font-medium text-slate-700 dark:text-slate-200">Descripción</span>
                     <textarea rows={4} className="mt-1 w-full input-field" {...eventForm.register('description', { required: true })} />
                   </label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Los eventos creados desde el grupo son privados y solo estarán visibles para los miembros de este espacio.
+                </p>
                   <div className="flex gap-2">
                     <SubmitButton disabled={createEventMutation.isLoading}>Crear y Compartir</SubmitButton>
                     <button
@@ -415,7 +568,14 @@ const GroupDetailPage = () => {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{ge.event.title}</h3>
-                        <StatusBadge status={ge.event.status as any} />
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={ge.event.status as any} />
+                          {ge.event.visibility === 'PRIVATE' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                              Privado
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">{ge.event.description}</p>

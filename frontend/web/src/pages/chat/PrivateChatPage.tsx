@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
@@ -15,6 +15,7 @@ const PrivateChatPage = () => {
   const { userId } = useParams<{ userId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -37,15 +38,19 @@ const PrivateChatPage = () => {
 
   const { data: conversations, isLoading: conversationsLoading } = useQuery({
     queryKey: ['conversations'],
-    queryFn: ({ signal }) => getConversations(signal)
+    queryFn: ({ signal }) => getConversations(signal),
+    refetchInterval: 10000 // Actualizar cada 10 segundos (reducido para evitar loops)
   });
 
   const { data: friends, isLoading: friendsLoading } = useQuery({
     queryKey: ['friends'],
-    queryFn: ({ signal }) => getFriends(signal),
-    onSuccess: (friends) => {
-      // Verificar presencia de todos los amigos
-      friends?.forEach((friend) => {
+    queryFn: ({ signal }) => getFriends(signal)
+  });
+
+  // Verificar presencia de todos los amigos cuando se cargan
+  useEffect(() => {
+    if (friends) {
+      friends.forEach((friend) => {
         presenceService.checkPresence(friend.id).then((online) => {
           if (online) {
             setOnlineUsers((prev) => new Set(prev).add(friend.id));
@@ -53,7 +58,7 @@ const PrivateChatPage = () => {
         });
       });
     }
-  });
+  }, [friends]);
 
   const selectedFriend = friends?.find((f) => f.id === Number(userId));
 

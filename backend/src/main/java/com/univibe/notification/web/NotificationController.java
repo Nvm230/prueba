@@ -12,7 +12,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -66,5 +69,25 @@ public class NotificationController {
         }
         
         return n;
+    }
+
+    @PutMapping("/{notificationId}/read")
+    public ResponseEntity<?> markAsRead(@PathVariable Long notificationId, Authentication auth) {
+        var requester = userRepository.findByEmail((String) auth.getPrincipal()).orElseThrow();
+        int updated = notificationRepository.markAsRead(notificationId, requester.getId());
+        if (updated > 0) {
+            return ResponseEntity.ok(Map.of("message", "Notification marked as read"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/mark-message-notifications-read/{senderName}")
+    public ResponseEntity<?> markMessageNotificationsAsRead(@PathVariable String senderName, Authentication auth) {
+        var requester = userRepository.findByEmail((String) auth.getPrincipal()).orElseThrow();
+        // Decodificar el nombre del usuario (puede venir codificado desde la URL)
+        String decodedSenderName = java.net.URLDecoder.decode(senderName, java.nio.charset.StandardCharsets.UTF_8);
+        String titlePattern = "Nuevo mensaje de " + decodedSenderName + "%";
+        int updated = notificationRepository.markAsReadByTitlePattern(requester.getId(), titlePattern);
+        return ResponseEntity.ok(Map.of("message", "Notifications marked as read", "count", updated));
     }
 }

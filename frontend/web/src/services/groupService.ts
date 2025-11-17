@@ -15,25 +15,55 @@ export const fetchGroups = (
 export const fetchGroupDetail = (groupId: number, signal?: AbortSignal) =>
   apiClient.get<Group>(`/api/groups/${groupId}`, { signal }).then((res) => res.data);
 
-export const createGroup = (payload: { name: string }, signal?: AbortSignal) =>
+export const createGroup = (payload: { name: string; privacy?: 'PUBLIC' | 'PRIVATE' }, signal?: AbortSignal) =>
   apiClient
     .post<Group>('/api/groups', null, {
-      params: { name: payload.name },
+      params: { name: payload.name, privacy: payload.privacy ?? 'PUBLIC' },
       signal
     })
     .then((res) => res.data);
 
-export const joinGroup = (
-  groupId: number,
-  payload: { userId: number },
-  signal?: AbortSignal
-) =>
+export interface JoinGroupResponse {
+  status: 'JOINED' | 'PENDING' | 'ALREADY_MEMBER';
+  message?: string;
+  group?: Group;
+}
+
+export const joinGroup = (groupId: number, userId?: number, signal?: AbortSignal) =>
   apiClient
-    .post(`/api/groups/${groupId}/join`, null, {
-      params: payload,
+    .post<JoinGroupResponse>(`/api/groups/${groupId}/join`, null, {
+      params: userId ? { userId } : undefined,
       signal
     })
-    .then((res) => res.data as { members: number });
+    .then((res) => res.data);
+
+export const deleteGroup = (groupId: number, signal?: AbortSignal) =>
+  apiClient.delete(`/api/groups/${groupId}`, { signal }).then((res) => res.data);
+
+export interface GroupJoinRequest {
+  id: number;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    profilePictureUrl?: string;
+  };
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+}
+
+export const fetchGroupJoinRequests = (groupId: number, signal?: AbortSignal) =>
+  apiClient.get<GroupJoinRequest[]>(`/api/groups/${groupId}/join-requests`, { signal }).then((res) => res.data);
+
+export const approveJoinRequest = (groupId: number, requestId: number, signal?: AbortSignal) =>
+  apiClient
+    .post<{ status: 'APPROVED'; group: Group }>(`/api/groups/${groupId}/join-requests/${requestId}/approve`, null, { signal })
+    .then((res) => res.data);
+
+export const rejectJoinRequest = (groupId: number, requestId: number, signal?: AbortSignal) =>
+  apiClient
+    .post<{ status: 'REJECTED' }>(`/api/groups/${groupId}/join-requests/${requestId}/reject`, null, { signal })
+    .then((res) => res.data);
 
 // Group Channel Services
 export interface GroupMessage {
@@ -70,6 +100,7 @@ export interface GroupEvent {
     title: string;
     description: string;
     category: string;
+    visibility: 'PUBLIC' | 'PRIVATE';
     status: string;
     startTime: string;
     endTime: string;

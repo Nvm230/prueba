@@ -18,7 +18,11 @@ public class Group {
     @ManyToOne(optional = false)
     private User owner;
 
-    @ManyToMany
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private GroupPrivacy privacy = GroupPrivacy.PUBLIC;
+
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "group_members",
             joinColumns = @JoinColumn(name = "group_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id"))
@@ -30,6 +34,8 @@ public class Group {
     public void setName(String name) { this.name = name; }
     public User getOwner() { return owner; }
     public void setOwner(User owner) { this.owner = owner; }
+    public GroupPrivacy getPrivacy() { return privacy; }
+    public void setPrivacy(GroupPrivacy privacy) { this.privacy = privacy; }
     public Set<User> getMembers() { return members; }
     public void setMembers(Set<User> members) { this.members = members; }
 }

@@ -19,7 +19,8 @@ const eventSchema = z.object({
   faculty: z.string().optional(),
   career: z.string().optional(),
   startTime: z.string().min(1, 'La fecha de inicio es requerida'),
-  endTime: z.string().min(1, 'La fecha de fin es requerida')
+  endTime: z.string().min(1, 'La fecha de fin es requerida'),
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC')
 }).refine((data) => {
   const start = new Date(data.startTime);
   const end = new Date(data.endTime);
@@ -57,7 +58,8 @@ const CreateEventPage = () => {
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
-      category: ''
+      category: '',
+      visibility: 'PUBLIC'
     }
   });
 
@@ -73,7 +75,7 @@ const CreateEventPage = () => {
       navigate(`/events/${event.id}`);
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'No se pudo crear el evento. Intenta nuevamente.';
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'No se pudo crear el evento. Intenta nuevamente.';
       pushToast({
         type: 'error',
         title: 'Error al crear evento',
@@ -89,7 +91,8 @@ const CreateEventPage = () => {
       startTime: new Date(data.startTime).toISOString(),
       endTime: new Date(data.endTime).toISOString(),
       faculty: data.faculty || null,
-      career: data.career || null
+      career: data.career || null,
+      visibility: data.visibility
     };
     mutation.mutate(payload);
   };
@@ -201,7 +204,21 @@ const CreateEventPage = () => {
                 required
               />
             </div>
+
+            <SelectField
+              label="Visibilidad"
+              {...register('visibility')}
+              error={errors.visibility?.message}
+              className="md:col-span-2"
+            >
+              <option value="PUBLIC">Público (aparece en Eventos)</option>
+              <option value="PRIVATE">Privado (solo accesible con enlace o grupo)</option>
+            </SelectField>
           </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Los eventos privados no se listan en la sección general y solo los miembros de los grupos con los que lo compartas podrán inscribirse.
+          </p>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
             <button

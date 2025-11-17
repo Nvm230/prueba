@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import EventCard from '@/components/display/EventCard';
@@ -10,11 +11,13 @@ import SelectField from '@/components/forms/SelectField';
 import TextField from '@/components/forms/TextField';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
-import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { getUserRegistrations } from '@/services/registrationService';
+import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 const EventListPage = () => {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
+  const [showRegistered, setShowRegistered] = useState(false);
 
   const page = Number(params.get('page') ?? 0);
   const size = Number(params.get('size') ?? 12);
@@ -29,6 +32,12 @@ const EventListPage = () => {
     status,
     category,
     search: debouncedSearch || undefined
+  });
+
+  const { data: registeredEvents = [], isLoading: loadingRegistered } = useQuery({
+    queryKey: ['user-registrations', user?.id],
+    queryFn: ({ signal }) => getUserRegistrations(signal),
+    enabled: Boolean(user) && showRegistered
   });
 
   const updateParam = (key: string, value?: string | number) => {
@@ -63,16 +72,53 @@ const EventListPage = () => {
             Descubre y regístrate en eventos universitarios que te interesen
           </p>
         </div>
-        {canCreateEvents && (
-          <Link
-            to="/events/new"
-            className="btn-primary inline-flex items-center gap-2 whitespace-nowrap"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Crear Evento
-          </Link>
-        )}
+        <div className="flex gap-2">
+          {user && (
+            <button
+              onClick={() => setShowRegistered(!showRegistered)}
+              className={`btn-secondary inline-flex items-center gap-2 whitespace-nowrap ${
+                showRegistered ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : ''
+              }`}
+            >
+              <TicketIcon className="h-5 w-5" />
+              {showRegistered ? 'Ver todos' : 'Mis inscripciones'}
+            </button>
+          )}
+          {canCreateEvents && (
+            <Link
+              to="/events/new"
+              className="btn-primary inline-flex items-center gap-2 whitespace-nowrap"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Crear Evento
+            </Link>
+          )}
+        </div>
       </div>
+
+      {/* Mis Inscripciones */}
+      {showRegistered && user && (
+        <div className="card border-primary-200 dark:border-primary-800 bg-gradient-to-br from-primary-50/50 to-white dark:from-primary-900/10 dark:to-slate-900/70">
+          <div className="flex items-center gap-2 mb-4">
+            <TicketIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Mis Eventos Inscritos</h2>
+          </div>
+          {loadingRegistered ? (
+            <LoadingOverlay message="Cargando tus inscripciones" />
+          ) : registeredEvents.length === 0 ? (
+            <EmptyState
+              title="Sin inscripciones"
+              description="Aún no te has inscrito a ningún evento. Explora los eventos disponibles y regístrate."
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {registeredEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card">

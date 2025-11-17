@@ -50,10 +50,17 @@ const SurveyPage = () => {
       const questions = values.questions
         .split('\n')
         .map((question) => question.trim())
-        .filter(Boolean);
+        .filter((q) => q && q.length > 0);
       
       if (questions.length === 0) {
-        pushToast({ type: 'error', title: 'Error', description: 'Debes agregar al menos una pregunta' });
+        pushToast({ type: 'error', title: 'Error', description: 'Debes agregar al menos una pregunta con al menos un carácter' });
+        return;
+      }
+      
+      // Validar que todas las preguntas tengan al menos un carácter
+      const invalidQuestions = questions.filter((q) => !q || q.trim().length === 0);
+      if (invalidQuestions.length > 0) {
+        pushToast({ type: 'error', title: 'Error', description: 'Todas las preguntas deben tener al menos un carácter' });
         return;
       }
       
@@ -173,15 +180,19 @@ const SurveyPage = () => {
                   )}
                 </div>
               </div>
-              {survey.questions.length === 0 ? (
+              {(() => {
+                const surveyQuestions = survey.questions ?? [];
+                return surveyQuestions.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">Esta encuesta aún no tiene preguntas.</p>
-              ) : (
+                ) : (
                 <ul className="space-y-3">
-                  {survey.questions.map((question) => (
+                  {surveyQuestions.map((question) => {
+                    const answersList = question.answers ?? [];
+                    return (
                     <li key={question.id} className="rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-3">
                       <div className="text-sm font-semibold text-slate-900 dark:text-white">{question.text}</div>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Respuestas registradas: {question.answers.length}
+                        Respuestas registradas: {answersList.length}
                       </p>
                       {canManageSurveys && (
                         <button
@@ -202,10 +213,10 @@ const SurveyPage = () => {
                       )}
                       {viewingAnswers[question.id] && canManageSurveys && (
                         <div className="mt-2 space-y-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-                          {question.answers.length === 0 ? (
+                          {answersList.length === 0 ? (
                             <p className="text-xs text-slate-500 dark:text-slate-400">Aún no hay respuestas</p>
                           ) : (
-                            question.answers.map((answer) => (
+                            answersList.map((answer) => (
                               <div key={answer.id} className="text-xs">
                                 <span className="font-medium text-slate-700 dark:text-slate-300">
                                   {answer.respondent.name}:
@@ -242,9 +253,11 @@ const SurveyPage = () => {
                         </p>
                       )}
                     </li>
-                  ))}
+                  );
+                  })}
                 </ul>
-              )}
+              );
+              })()}
             </div>
           ))}
         </div>
