@@ -45,6 +45,7 @@ export interface Group {
   privacy?: 'PUBLIC' | 'PRIVATE';
   members: UserSummary[];
   pendingJoinRequest?: boolean;
+  membersCanChat?: boolean;
 }
 
 export interface SurveyAnswer {

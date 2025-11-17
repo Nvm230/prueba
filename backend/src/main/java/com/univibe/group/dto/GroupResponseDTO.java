@@ -15,6 +15,7 @@ public class GroupResponseDTO {
     private UserSummaryDTO owner;
     private List<UserSummaryDTO> members;
     private Boolean pendingJoinRequest;
+    private Boolean membersCanChat;
 
     public GroupResponseDTO() {}
 
@@ -27,6 +28,7 @@ public class GroupResponseDTO {
         this.members = group.getMembers().stream()
                 .map(member -> new UserSummaryDTO(member.getId(), member.getName(), member.getEmail(), member.getProfilePictureUrl()))
                 .collect(Collectors.toList());
+        this.membersCanChat = group.getMembersCanChat();
     }
 
     public Long getId() { return id; }
@@ -41,5 +43,7 @@ public class GroupResponseDTO {
     public void setMembers(List<UserSummaryDTO> members) { this.members = members; }
     public Boolean getPendingJoinRequest() { return pendingJoinRequest; }
     public void setPendingJoinRequest(Boolean pendingJoinRequest) { this.pendingJoinRequest = pendingJoinRequest; }
+    public Boolean getMembersCanChat() { return membersCanChat; }
+    public void setMembersCanChat(Boolean membersCanChat) { this.membersCanChat = membersCanChat; }
 }
 

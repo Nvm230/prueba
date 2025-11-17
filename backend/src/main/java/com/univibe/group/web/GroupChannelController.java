@@ -76,8 +76,13 @@ public class GroupChannelController {
         this.eventSecurityService = eventSecurityService;
     }
 
-    // Verificar que el usuario es owner o SERVER
+    // Verificar que el usuario puede enviar mensajes al grupo
     private boolean canSendToGroup(Group group, User user) {
+        // Si el chat está habilitado para miembros, cualquier miembro puede enviar
+        if (Boolean.TRUE.equals(group.getMembersCanChat())) {
+            return isMember(group, user);
+        }
+        // Si no está habilitado, solo owner/admin/server pueden enviar
         return group.getOwner().getId().equals(user.getId()) ||
                user.getRole().name().equals("SERVER") ||
                user.getRole().name().equals("ADMIN");

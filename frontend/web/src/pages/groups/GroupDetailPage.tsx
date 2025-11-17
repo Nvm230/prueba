@@ -25,7 +25,8 @@ import {
   fetchGroupJoinRequests,
   approveJoinRequest,
   rejectJoinRequest,
-  deleteGroup
+  deleteGroup,
+  toggleGroupChat
 } from '@/services/groupService';
 import { fetchSurveys } from '@/services/surveyService';
 import SelectField from '@/components/forms/SelectField';
@@ -237,6 +238,17 @@ const GroupDetailPage = () => {
     }
   });
 
+  const toggleChatMutation = useMutation({
+    mutationFn: () => toggleGroupChat(Number(groupId!)),
+    onSuccess: (data) => {
+      pushToast({ type: 'success', title: 'Configuración actualizada', description: data.message });
+      queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+    },
+    onError: (error: any) => {
+      pushToast({ type: 'error', title: 'Error', description: error.message || 'No se pudo actualizar la configuración' });
+    }
+  });
+
   if (groupLoading) {
     return <LoadingOverlay message="Cargando grupo" />;
   }
@@ -405,15 +417,35 @@ const GroupDetailPage = () => {
         {/* Mensajes */}
         {activeTab === 'messages' && (
           <div>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Canal de Mensajes</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {canManage
-                  ? 'Envía mensajes e información a todos los miembros del grupo.'
-                  : 'Solo el administrador puede enviar mensajes en este canal.'}
-              </p>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Canal de Mensajes</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {group?.membersCanChat
+                    ? 'Todos los miembros pueden enviar mensajes en este canal.'
+                    : 'Solo el administrador puede enviar mensajes en este canal.'}
+                </p>
+              </div>
+              {canManage && (
+                <button
+                  onClick={() => toggleChatMutation.mutate()}
+                  disabled={toggleChatMutation.isLoading}
+                  className={`btn-secondary whitespace-nowrap ${
+                    group?.membersCanChat ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300' : ''
+                  }`}
+                >
+                  {toggleChatMutation.isLoading
+                    ? 'Actualizando...'
+                    : group?.membersCanChat
+                    ? '🔒 Restringir Chat'
+                    : '🔓 Habilitar Chat para Todos'}
+                </button>
+              )}
             </div>
-            <GroupChannelWindow groupId={Number(groupId!)} canSend={!!canManage} />
+            <GroupChannelWindow 
+              groupId={Number(groupId!)} 
+              canSend={!!(group?.membersCanChat ? isMember : canManage)} 
+            />
           </div>
         )}
 

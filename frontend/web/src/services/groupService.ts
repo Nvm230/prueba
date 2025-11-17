@@ -40,6 +40,11 @@ export const joinGroup = (groupId: number, userId?: number, signal?: AbortSignal
 export const deleteGroup = (groupId: number, signal?: AbortSignal) =>
   apiClient.delete(`/api/groups/${groupId}`, { signal }).then((res) => res.data);
 
+export const toggleGroupChat = (groupId: number, signal?: AbortSignal) =>
+  apiClient
+    .post<{ membersCanChat: boolean; message: string }>(`/api/groups/${groupId}/toggle-chat`, {}, { signal })
+    .then((res) => res.data);
+
 export interface GroupJoinRequest {
   id: number;
   user: {

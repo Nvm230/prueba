@@ -226,14 +226,55 @@ public class GroupController {
                 || user.getRole() == com.univibe.user.model.Role.SERVER;
     }
 
+    @PostMapping("/{groupId}/toggle-chat")
+    @Transactional
+    public ResponseEntity<?> toggleChat(@PathVariable Long groupId, Authentication auth) {
+        String email = (String) auth.getPrincipal();
+        User user = userRepository.findByEmail(email).orElseThrow();
+        Group group = groupRepository.findById(groupId).orElseThrow();
+        
+        if (!canManageGroup(group, user)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Solo el creador del grupo o un administrador pueden modificar esta configuración"));
+        }
+        
+        group.setMembersCanChat(!Boolean.TRUE.equals(group.getMembersCanChat()));
+        groupRepository.save(group);
+        
+        return ResponseEntity.ok(Map.of(
+                "membersCanChat", group.getMembersCanChat(),
+                "message", group.getMembersCanChat() 
+                    ? "Chat habilitado para todos los miembros" 
+                    : "Chat restringido a administradores"
+        ));
+    }
+
     @DeleteMapping("/{groupId}")
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ResponseEntity<?> deleteGroup(@PathVariable Long groupId) {
         Group group = groupRepository.findById(groupId).orElseThrow();
+        
+        // Eliminar todas las dependencias antes de eliminar el grupo
+        // Esto evita violaciones de restricciones de clave foránea
+        entityManager.createNativeQuery("DELETE FROM group_announcements WHERE group_id = :groupId")
+                .setParameter("groupId", groupId)
+                .executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM group_messages WHERE group_id = :groupId")
+                .setParameter("groupId", groupId)
+                .executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM group_events WHERE group_id = :groupId")
+                .setParameter("groupId", groupId)
+                .executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM group_surveys WHERE group_id = :groupId")
+                .setParameter("groupId", groupId)
+                .executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM group_join_requests WHERE group_id = :groupId")
+                .setParameter("groupId", groupId)
+                .executeUpdate();
         entityManager.createNativeQuery("DELETE FROM group_members WHERE group_id = :groupId")
                 .setParameter("groupId", groupId)
                 .executeUpdate();
+        
         groupRepository.delete(group);
         return ResponseEntity.ok(Map.of("message", "Grupo eliminado exitosamente"));
     }

@@ -28,6 +28,9 @@ public class Group {
             inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<User> members = new HashSet<>();
 
+    @Column(nullable = false)
+    private Boolean membersCanChat = false; // Por defecto solo owner/admin puede enviar mensajes
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -38,4 +41,6 @@ public class Group {
     public void setPrivacy(GroupPrivacy privacy) { this.privacy = privacy; }
     public Set<User> getMembers() { return members; }
     public void setMembers(Set<User> members) { this.members = members; }
+    public Boolean getMembersCanChat() { return membersCanChat; }
+    public void setMembersCanChat(Boolean membersCanChat) { this.membersCanChat = membersCanChat; }
 }

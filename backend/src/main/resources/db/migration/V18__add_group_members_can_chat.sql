@@ -1,0 +1,3 @@
+ALTER TABLE groups
+ADD COLUMN IF NOT EXISTS members_can_chat BOOLEAN NOT NULL DEFAULT false;
+
