@@ -4,12 +4,26 @@ import { storage, tokenStorageKey } from '@/utils/storage';
 
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  // Forzar el uso de localhost:8080 si no hay variable de entorno o si está configurada incorrectamente
-  if (envUrl && envUrl !== '' && !envUrl.includes('5173')) {
+  
+  // En producción (AWS), si la URL contiene el puerto del frontend (5173), usar URL relativa
+  // porque Nginx hace proxy de /api/ al backend
+  if (envUrl && envUrl !== '' && envUrl.includes('5173')) {
+    // Usar URL relativa para que Nginx haga el proxy correctamente
+    return '';
+  }
+  
+  // Si hay una URL configurada y no es el puerto del frontend, usarla
+  if (envUrl && envUrl !== '') {
     return envUrl;
   }
-  // Siempre usar localhost:8080 como fallback
-  return 'http://localhost:8080';
+  
+  // En desarrollo local, usar localhost:8080 como fallback
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8080';
+  }
+  
+  // En producción sin URL configurada, usar URL relativa
+  return '';
 };
 
 const apiClient = axios.create({
@@ -38,15 +52,16 @@ apiClient.interceptors.request.use((config) => {
     ...config.headers
   };
   
-  // Forzar que la URL base sea siempre localhost:8080 si la petición es a /api/**
+  // En producción, si la baseURL está vacía (URL relativa), Nginx hará el proxy
+  // En desarrollo, usar localhost:8080
   if (config.url && config.url.startsWith('/api/')) {
-    // Si la URL base contiene 5173, forzar a 8080
-    if (config.baseURL && config.baseURL.includes('5173')) {
+    // Si no hay baseURL configurada y estamos en desarrollo, usar localhost:8080
+    if (!config.baseURL && import.meta.env.DEV) {
       config.baseURL = 'http://localhost:8080';
     }
-    // Si no hay baseURL, establecerla
-    if (!config.baseURL) {
-      config.baseURL = 'http://localhost:8080';
+    // Si la baseURL contiene 5173 (puerto del frontend), usar URL relativa para que Nginx haga proxy
+    if (config.baseURL && config.baseURL.includes('5173')) {
+      config.baseURL = '';
     }
   }
   
