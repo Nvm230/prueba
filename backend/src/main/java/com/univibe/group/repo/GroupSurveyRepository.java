@@ -8,6 +8,7 @@ import java.util.List;
 public interface GroupSurveyRepository extends JpaRepository<GroupSurvey, Long> {
     List<GroupSurvey> findByGroupIdOrderByCreatedAtDesc(Long groupId);
     boolean existsByGroupIdAndSurveyId(Long groupId, Long surveyId);
+    void deleteBySurveyIdIn(List<Long> surveyIds);
 }
 
 

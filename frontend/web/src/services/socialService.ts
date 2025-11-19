@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import { PaginatedResponse } from '@/types';
+import { ReactionSummary } from '@/types/reaction';
 
 export interface UserProfile {
   id: number;
@@ -55,8 +56,14 @@ export interface PrivateMessage {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  fileId?: number;
+  filePreview?: string;
+  stickerId?: number;
+  stickerPreview?: string;
   readFlag: boolean;
   createdAt: string;
+  callMode?: string;
+  reactions?: ReactionSummary[];
 }
 
 export const getMyProfile = (signal?: AbortSignal) =>
@@ -122,6 +129,9 @@ export const getConversation = (
 
 export const getUnreadMessageCount = (signal?: AbortSignal) =>
   apiClient.get<{ count: number }>('/api/private-messages/unread-count', { signal }).then((res) => res.data);
+
+export const markConversationAsRead = (otherUserId: number, signal?: AbortSignal) =>
+  apiClient.post<{ success: boolean; markedCount: number }>(`/api/private-messages/conversation/${otherUserId}/mark-read`, {}, { signal }).then((res) => res.data);
 
 
 

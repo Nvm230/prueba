@@ -51,7 +51,7 @@ const AdminUsersPage = () => {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Administración' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Administración' }]} />
       <div className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-6 space-y-4 shadow-soft">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

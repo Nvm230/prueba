@@ -24,6 +24,7 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.49.2",
     "react-router-dom": "^6.22.1",
+    "simple-peer": "^9.11.1",
     "sockjs-client": "^1.6.1",
     "whatwg-fetch": "^3.6.20",
     "zod": "^3.22.4"
@@ -33,6 +34,9 @@
     "@testing-library/react": "^14.1.2",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
+    "@types/simple-peer": "^9.11.9",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",

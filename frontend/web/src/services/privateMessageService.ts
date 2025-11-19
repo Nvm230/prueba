@@ -29,9 +29,11 @@ const WS_BASE_URL = getWsBaseUrl();
 
 export interface PrivateMessageRequest {
   content: string;
-  fileUrl?: string;
+  fileId?: number;
   fileType?: string;
   fileName?: string;
+  stickerId?: number;
+  callMode?: string;
 }
 
 class PrivateMessageService {

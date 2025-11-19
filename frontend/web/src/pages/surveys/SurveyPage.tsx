@@ -1,16 +1,19 @@
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
 import EmptyState from '@/components/display/EmptyState';
 import TextField from '@/components/forms/TextField';
 import SelectField from '@/components/forms/SelectField';
 import SubmitButton from '@/components/forms/SubmitButton';
+import PaginationControls from '@/components/data/PaginationControls';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/contexts/ToastContext';
 import { fetchSurveys, createSurvey, answerSurveyQuestion, fetchSurveyAnswers, closeSurvey } from '@/services/surveyService';
 import { fetchEvents } from '@/services/eventService';
+import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { LockClosedIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 interface CreateSurveyForm {
@@ -25,10 +28,13 @@ const SurveyPage = () => {
   const queryClient = useQueryClient();
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [viewingAnswers, setViewingAnswers] = useState<Record<number, boolean>>({});
+  const [params, setParams] = useSearchParams();
+  const page = Number(params.get('page') ?? 0);
+  const size = Number(params.get('size') ?? 6);
 
-  const surveyQuery = useQuery({
-    queryKey: ['surveys'],
-    queryFn: ({ signal }) => fetchSurveys({}, signal)
+  const surveyQuery = usePaginatedQuery({
+    queryKey: ['surveys', page, size],
+    queryFn: (signal) => fetchSurveys({ page, size }, signal)
   });
 
   const canManageSurveys = user && (user.role === 'ADMIN' || user.role === 'SERVER');
@@ -109,7 +115,7 @@ const SurveyPage = () => {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Encuestas' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Encuestas' }]} />
       {user?.role !== 'USER' && (
         <div className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-6 shadow-soft">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Crear nueva encuesta</h2>
@@ -145,9 +151,9 @@ const SurveyPage = () => {
       )}
       {surveyQuery.isLoading ? (
         <LoadingOverlay message="Cargando encuestas" />
-      ) : surveyQuery.data && surveyQuery.data.length > 0 ? (
-        <div className="grid gap-4">
-          {surveyQuery.data.map((survey) => (
+      ) : surveyQuery.data && surveyQuery.data.content.length > 0 ? (
+        <div className="space-y-4">
+          {surveyQuery.data.content.map((survey) => (
             <div
               key={survey.id}
               className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-6 shadow-soft space-y-4"
@@ -260,6 +266,17 @@ const SurveyPage = () => {
               })()}
             </div>
           ))}
+          <PaginationControls
+            page={surveyQuery.data.page}
+            size={surveyQuery.data.size}
+            totalElements={surveyQuery.data.totalElements}
+            onPageChange={(nextPage) => {
+              const next = new URLSearchParams(params);
+              next.set('page', String(nextPage));
+              next.set('size', String(size));
+              setParams(next, { replace: true });
+            }}
+          />
         </div>
       ) : (
         <EmptyState title="Sin encuestas" description="Crea una nueva encuesta para comenzar a recolectar insights." />

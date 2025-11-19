@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import { Group, PaginatedResponse } from '@/types';
+import { ReactionSummary } from '@/types/reaction';
 
 export const fetchGroups = (
   filters: { page?: number; size?: number; search?: string },
@@ -83,7 +84,12 @@ export interface GroupMessage {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  fileId?: number;
+  filePreview?: string;
+  stickerId?: number;
+  stickerPreview?: string;
   createdAt: string;
+  reactions?: ReactionSummary[];
 }
 
 export interface GroupAnnouncement {

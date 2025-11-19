@@ -120,7 +120,7 @@ const NotificationsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Notificaciones' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Notificaciones' }]} />
       
       {/* Información sobre notificaciones */}
       <div className="card bg-gradient-to-br from-primary-50 to-primary-100/30 dark:from-primary-900/20 dark:to-primary-800/10 border-primary-200 dark:border-primary-800">

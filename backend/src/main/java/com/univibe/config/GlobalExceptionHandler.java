@@ -4,6 +4,7 @@ import com.univibe.common.dto.ErrorResponse;
 import com.univibe.common.exception.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,6 +38,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, ServletWebRequest req) {
+        ErrorResponse err = new ErrorResponse();
+        err.setStatus(HttpStatus.BAD_REQUEST.value());
+        err.setError(HttpStatus.BAD_REQUEST.getReasonPhrase());
+        err.setMessage(ex.getMessage());
+        err.setPath(req.getRequest().getRequestURI());
+        return ResponseEntity.badRequest().body(err);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, ServletWebRequest req) {
+        ErrorResponse err = new ErrorResponse();
+        err.setStatus(HttpStatus.FORBIDDEN.value());
+        err.setError(HttpStatus.FORBIDDEN.getReasonPhrase());
+        err.setMessage(ex.getMessage() != null ? ex.getMessage() : "Access Denied");
+        err.setPath(req.getRequest().getRequestURI());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex, ServletWebRequest req) {
         ErrorResponse err = new ErrorResponse();
         err.setStatus(HttpStatus.BAD_REQUEST.value());
         err.setError(HttpStatus.BAD_REQUEST.getReasonPhrase());

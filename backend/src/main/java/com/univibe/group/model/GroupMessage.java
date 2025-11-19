@@ -1,5 +1,7 @@
 package com.univibe.group.model;
 
+import com.univibe.media.model.StoredFile;
+import com.univibe.sticker.model.Sticker;
 import com.univibe.user.model.User;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -29,6 +31,13 @@ public class GroupMessage {
     @Column(length = 255)
     private String fileName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_asset_id")
+    private StoredFile attachment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Sticker sticker;
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -46,6 +55,10 @@ public class GroupMessage {
     public void setFileType(String fileType) { this.fileType = fileType; }
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
+    public StoredFile getAttachment() { return attachment; }
+    public void setAttachment(StoredFile attachment) { this.attachment = attachment; }
+    public Sticker getSticker() { return sticker; }
+    public void setSticker(Sticker sticker) { this.sticker = sticker; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

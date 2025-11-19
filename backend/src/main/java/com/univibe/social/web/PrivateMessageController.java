@@ -4,12 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.univibe.common.dto.PageResponse;
 import com.univibe.notification.model.Notification;
 import com.univibe.notification.repo.NotificationRepository;
+import com.univibe.chat.service.MessageResponseMapper;
 import com.univibe.social.dto.PrivateMessageRequest;
 import com.univibe.social.dto.PrivateMessageResponse;
-import com.univibe.social.dto.UserInfo;
 import com.univibe.social.model.PrivateMessage;
 import com.univibe.social.repo.FriendshipRepository;
 import com.univibe.social.repo.PrivateMessageRepository;
+import com.univibe.media.model.FileScope;
+import com.univibe.media.model.StoredFile;
+import com.univibe.media.service.FileStorageService;
+import com.univibe.sticker.model.Sticker;
+import com.univibe.sticker.service.StickerService;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +25,9 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -36,14 +44,28 @@ public class PrivateMessageController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final NotificationRepository notificationRepository;
+    private final FileStorageService fileStorageService;
+    private final StickerService stickerService;
+    private final MessageResponseMapper messageResponseMapper;
 
-    public PrivateMessageController(PrivateMessageRepository messageRepository, UserRepository userRepository, FriendshipRepository friendshipRepository, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper, NotificationRepository notificationRepository) {
+    public PrivateMessageController(PrivateMessageRepository messageRepository,
+                                    UserRepository userRepository,
+                                    FriendshipRepository friendshipRepository,
+                                    SimpMessagingTemplate messagingTemplate,
+                                    ObjectMapper objectMapper,
+                                    NotificationRepository notificationRepository,
+                                    FileStorageService fileStorageService,
+                                    StickerService stickerService,
+                                    MessageResponseMapper messageResponseMapper) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.friendshipRepository = friendshipRepository;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
         this.notificationRepository = notificationRepository;
+        this.fileStorageService = fileStorageService;
+        this.stickerService = stickerService;
+        this.messageResponseMapper = messageResponseMapper;
     }
 
     @MessageMapping("/private.{receiverId}.send")
@@ -67,25 +89,40 @@ public class PrivateMessageController {
             message.setSender(sender);
             message.setReceiver(receiver);
             message.setContent(request.getContent());
-            message.setFileUrl(request.getFileUrl());
-            message.setFileType(request.getFileType());
-            message.setFileName(request.getFileName());
-            PrivateMessage saved = messageRepository.save(message);
 
-            // Crear respuesta
-            UserInfo senderInfo = new UserInfo(sender.getId(), sender.getName(), sender.getEmail(), sender.getProfilePictureUrl());
-            UserInfo receiverInfo = new UserInfo(receiver.getId(), receiver.getName(), receiver.getEmail(), receiver.getProfilePictureUrl());
-            PrivateMessageResponse response = new PrivateMessageResponse(
-                saved.getId(),
-                senderInfo,
-                receiverInfo,
-                saved.getContent(),
-                saved.getFileUrl(),
-                saved.getFileType(),
-                saved.getFileName(),
-                saved.isReadFlag(),
-                saved.getCreatedAt()
-            );
+            if (request.getStickerId() != null) {
+                Sticker sticker = stickerService.findById(request.getStickerId());
+                if (sticker != null && sticker.getFile() != null) {
+                    message.setSticker(sticker);
+                    message.setAttachment(sticker.getFile());
+                    message.setFileType(sticker.getFile().getContentType());
+                    message.setFileName(sticker.getNombre());
+                    message.setFileUrl("/api/files/" + sticker.getFile().getId());
+                } else {
+                    throw new IllegalArgumentException("Sticker no encontrado o sin archivo asociado");
+                }
+            } else if (request.getFileId() != null) {
+                StoredFile storedFile = fileStorageService.findById(request.getFileId());
+                if (storedFile != null) {
+                    if (storedFile.getScope() != FileScope.PRIVATE_CHAT) {
+                        throw new IllegalArgumentException("Archivo inválido para chat privado");
+                    }
+                    if (storedFile.getScopeId() != null && !storedFile.getScopeId().equals(receiver.getId()) && !storedFile.getScopeId().equals(sender.getId())) {
+                        throw new IllegalArgumentException("El archivo no corresponde a esta conversación");
+                    }
+                    message.setAttachment(storedFile);
+                    message.setFileType(storedFile.getContentType());
+                    message.setFileName(storedFile.getFileName());
+                    message.setFileUrl("/api/files/" + storedFile.getId());
+                }
+            } else {
+                message.setFileUrl(request.getFileUrl());
+                message.setFileType(request.getFileType());
+                message.setFileName(request.getFileName());
+            }
+            message.setMode(request.getCallMode());
+            PrivateMessage saved = messageRepository.save(message);
+            PrivateMessageResponse response = messageResponseMapper.toPrivateResponse(saved);
 
             // Crear notificación para el receptor
             Notification notification = new Notification();
@@ -144,7 +181,51 @@ public class PrivateMessageController {
         return result;
     }
 
+    @PostMapping("/conversation/{otherUserId}/mark-read")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> markConversationAsRead(
+            @PathVariable Long otherUserId,
+            Authentication auth) {
+        try {
+            String email = (String) auth.getPrincipal();
+            User user = userRepository.findByEmail(email).orElseThrow();
+            User otherUser = userRepository.findById(otherUserId).orElseThrow();
+
+            // Verificar que son amigos
+            boolean areFriends = friendshipRepository.existsByUser1IdAndUser2Id(user.getId(), otherUserId) ||
+                                friendshipRepository.existsByUser1IdAndUser2Id(otherUserId, user.getId());
+            if (!areFriends) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Not friends"));
+            }
+
+            // Obtener todos los mensajes no leídos de esta conversación
+            var unreadMessages = messageRepository.findConversation(user.getId(), otherUserId, 
+                org.springframework.data.domain.PageRequest.of(0, 1000)).getContent()
+                .stream()
+                .filter(m -> m.getReceiver().getId().equals(user.getId()) && !m.isReadFlag())
+                .collect(java.util.stream.Collectors.toList());
+
+            if (!unreadMessages.isEmpty()) {
+                // Marcar todos como leídos
+                for (var message : unreadMessages) {
+                    message.setReadFlag(true);
+                }
+                messageRepository.saveAll(unreadMessages);
+                messageRepository.flush();
+            }
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "markedCount", unreadMessages.size()
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/conversation/{otherUserId}")
+    @Transactional(readOnly = true)
     public PageResponse<PrivateMessageResponse> getConversation(
             @PathVariable Long otherUserId,
             Authentication auth,
@@ -162,39 +243,64 @@ public class PrivateMessageController {
 
         var page = messageRepository.findConversation(user.getId(), otherUserId, pageable);
         
-        // Marcar mensajes como leídos
-        page.getContent().stream()
-            .filter(m -> m.getReceiver().getId().equals(user.getId()) && !m.isReadFlag())
-            .forEach(m -> {
-                m.setReadFlag(true);
-                messageRepository.save(m);
-            });
-
-        return PageResponse.from(page.map(msg -> {
-            UserInfo senderInfo = new UserInfo(
-                msg.getSender().getId(),
-                msg.getSender().getName(),
-                msg.getSender().getEmail(),
-                msg.getSender().getProfilePictureUrl()
-            );
-            UserInfo receiverInfo = new UserInfo(
-                msg.getReceiver().getId(),
-                msg.getReceiver().getName(),
-                msg.getReceiver().getEmail(),
-                msg.getReceiver().getProfilePictureUrl()
-            );
-            return new PrivateMessageResponse(
-                msg.getId(),
-                senderInfo,
-                receiverInfo,
-                msg.getContent(),
-                msg.getFileUrl(),
-                msg.getFileType(),
-                msg.getFileName(),
-                msg.isReadFlag(),
-                msg.getCreatedAt()
-            );
-        }));
+        // Pre-load LOBs within transaction - cargar attachment lazy manualmente
+        for (var message : page.getContent()) {
+            // Forzar carga de attachment si existe (lazy loading)
+            if (message.getAttachment() != null) {
+                try {
+                    // Acceder a los campos para forzar la carga
+                    Long fileId = message.getAttachment().getId();
+                    // Solo acceder a previewBase64 si es necesario, no a data (BYTEA)
+                    String preview = message.getAttachment().getPreviewBase64();
+                } catch (Exception e) {
+                    // Si falla, continuar sin attachment
+                    System.err.println("Error loading attachment for message " + message.getId() + ": " + e.getMessage());
+                }
+            }
+            // Cargar sticker.file si existe
+            if (message.getSticker() != null) {
+                try {
+                    // Forzar carga del file si existe (puede ser lazy)
+                    var sticker = message.getSticker();
+                    if (sticker.getFile() != null) {
+                        // Acceder a previewBase64 para forzar la carga dentro de la transacción
+                        String stickerPreview = sticker.getFile().getPreviewBase64();
+                        // También acceder al ID para asegurar que el file está cargado
+                        Long fileId = sticker.getFile().getId();
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error loading sticker file for message " + message.getId() + ": " + e.getMessage());
+                }
+            }
+        }
+        
+        // Mapear mensajes a respuesta (dentro de la transacción de solo lectura)
+        // Los mensajes se marcarán como leídos explícitamente mediante el endpoint /mark-read
+        return PageResponse.from(page.map(messageResponseMapper::toPrivateResponse));
+    }
+    
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markMessagesAsRead(java.util.List<com.univibe.social.model.PrivateMessage> messages) {
+        if (messages.isEmpty()) {
+            return;
+        }
+        // Obtener los IDs de los mensajes para recargarlos en la nueva transacción
+        java.util.List<Long> messageIds = messages.stream()
+            .map(com.univibe.social.model.PrivateMessage::getId)
+            .collect(java.util.stream.Collectors.toList());
+        
+        // Recargar los mensajes en la nueva transacción para evitar problemas de detach
+        java.util.List<com.univibe.social.model.PrivateMessage> messagesToUpdate = messageRepository.findAllById(messageIds);
+        
+        // Marcar todos los mensajes como leídos
+        for (var message : messagesToUpdate) {
+            message.setReadFlag(true);
+        }
+        
+        // Guardar todos los mensajes de una vez
+        messageRepository.saveAll(messagesToUpdate);
+        // Forzar flush para asegurar que los cambios se persistan inmediatamente
+        messageRepository.flush();
     }
 }
 

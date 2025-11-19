@@ -74,7 +74,7 @@ const ProfilePage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Perfil' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Perfil' }]} />
       
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Profile Card with QR */}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -10,8 +10,13 @@ const AUTH_ROUTES = ['/login', '/register'];
 const AppShell: React.FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation();
   const { user } = useAuth();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const isAuthRoute = useMemo(() => AUTH_ROUTES.includes(location.pathname), [location.pathname]);
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   if (!user && isAuthRoute) {
     return <>{children}</>;
@@ -24,8 +29,9 @@ const AppShell: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-slate-100 flex">
       <Sidebar />
+      <Sidebar variant="mobile" isOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
       <div className="flex-1 flex flex-col">
-        <TopBar />
+        <TopBar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <PageContainer>{children}</PageContainer>
       </div>
     </div>

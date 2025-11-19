@@ -1,15 +1,20 @@
 package com.univibe.event.web;
 
 import com.univibe.common.dto.PageResponse;
+import com.univibe.call.model.CallContextType;
+import com.univibe.call.service.CallService;
 import com.univibe.event.dto.*;
 import com.univibe.event.model.Event;
 import com.univibe.event.model.EventStatus;
 import com.univibe.event.model.EventVisibility;
 import com.univibe.event.repo.EventRepository;
 import com.univibe.event.service.EventSecurityService;
+import com.univibe.group.repo.GroupSurveyRepository;
 import com.univibe.registration.model.RegistrationStatus;
 import com.univibe.registration.repo.RegistrationRepository;
 import com.univibe.registration.service.QrService;
+import com.univibe.survey.model.Survey;
+import com.univibe.survey.repo.SurveyRepository;
 import com.univibe.user.model.Role;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
@@ -30,7 +35,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.hibernate.Hibernate;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,19 +50,28 @@ public class EventController {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final RegistrationRepository registrationRepository;
+    private final SurveyRepository surveyRepository;
+    private final GroupSurveyRepository groupSurveyRepository;
     private final QrService qrService;
     private final EventSecurityService eventSecurityService;
+    private final CallService callService;
 
     public EventController(EventRepository eventRepository,
                            UserRepository userRepository,
                            RegistrationRepository registrationRepository,
+                           SurveyRepository surveyRepository,
+                           GroupSurveyRepository groupSurveyRepository,
                            QrService qrService,
-                           EventSecurityService eventSecurityService) {
+                           EventSecurityService eventSecurityService,
+                           CallService callService) {
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.registrationRepository = registrationRepository;
+        this.surveyRepository = surveyRepository;
+        this.groupSurveyRepository = groupSurveyRepository;
         this.qrService = qrService;
         this.eventSecurityService = eventSecurityService;
+        this.callService = callService;
     }
 
     private EventResponseDTO toDto(Event event) {
@@ -79,6 +95,19 @@ public class EventController {
         return user.getRole() == Role.ADMIN || user.getRole() == Role.SERVER;
     }
 
+    private void validateEventSchedule(Instant startTime, Instant endTime) {
+        if (startTime == null || endTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debes indicar fecha y hora de inicio y fin");
+        }
+        Instant now = Instant.now();
+        if (!startTime.isAfter(now.plusSeconds(300))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha y hora de inicio deben ser al menos 5 minutos posteriores al momento actual");
+        }
+        if (!endTime.isAfter(startTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha y hora de finalización deben ser posteriores al inicio");
+        }
+    }
+
     @GetMapping(params = "!registered")
     @Transactional(readOnly = true)
     public PageResponse<EventResponseDTO> list(
@@ -97,7 +126,7 @@ public class EventController {
         if (visibility.isPresent()) {
             EventVisibility requested = visibility.get();
             if (requested == EventVisibility.PRIVATE && !isAdmin) {
-                throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN, "Solo administradores pueden listar eventos privados");
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo administradores pueden listar eventos privados");
             }
             spec = spec.and((root, query, cb) -> cb.equal(root.get("visibility"), requested));
         } else if (!isAdmin) {
@@ -173,7 +202,7 @@ public class EventController {
     @Transactional(readOnly = true)
     public PageResponse<EventResponseDTO> listRegistered(Authentication auth) {
         if (auth == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED, "Debe iniciar sesión para ver sus inscripciones");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Debe iniciar sesión para ver sus inscripciones");
         }
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
@@ -222,7 +251,7 @@ public class EventController {
         }
         User requester = resolveUser(auth);
         if (!eventSecurityService.canAccessEvent(event, requester)) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN, "Este evento es privado. Únete al grupo correspondiente para acceder.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Este evento es privado. Únete al grupo correspondiente para acceder.");
         }
 
         // Convertir a DTO para evitar problemas con proxies
@@ -234,6 +263,8 @@ public class EventController {
     public ResponseEntity<?> create(@RequestBody @Valid EventCreateRequest req, Authentication auth) {
         String email = (String) auth.getPrincipal();
         User creator = userRepository.findByEmail(email).orElseThrow();
+
+        validateEventSchedule(req.getStartTime(), req.getEndTime());
 
         // Validar que no exista un evento con el mismo título y hora de inicio
         Optional<Event> existingEvent = eventRepository.findByTitleIgnoreCaseAndStartTime(req.getTitle(), req.getStartTime());
@@ -266,6 +297,7 @@ public class EventController {
     @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
     public EventResponseDTO start(@PathVariable Long eventId) {
         Event event = eventRepository.findById(eventId).orElseThrow();
+        callService.endSessionsForContext(CallContextType.EVENT, eventId.longValue());
         event.setStatus(EventStatus.LIVE);
         Event savedEvent = eventRepository.save(event);
         return toDto(savedEvent);
@@ -275,6 +307,7 @@ public class EventController {
     @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
     public EventResponseDTO finish(@PathVariable Long eventId) {
         Event event = eventRepository.findById(eventId).orElseThrow();
+        callService.endSessionsForContext(CallContextType.EVENT, eventId.longValue());
         event.setStatus(EventStatus.FINISHED);
         Event savedEvent = eventRepository.save(event);
         return toDto(savedEvent);
@@ -297,6 +330,8 @@ public class EventController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "Solo puedes modificar eventos que aún no han iniciado"));
         }
+
+        validateEventSchedule(req.getStartTime(), req.getEndTime());
 
         // Validar duplicados (excluyendo el evento actual)
         Optional<Event> existingEvent = eventRepository.findByTitleIgnoreCaseAndStartTime(req.getTitle(), req.getStartTime());
@@ -325,11 +360,20 @@ public class EventController {
         Event event = eventRepository.findById(eventId).orElseThrow();
 
         if (event.getStatus() != EventStatus.PENDING) {
-            String reason = event.getStatus() == EventStatus.LIVE
-                ? "No puedes eliminar un evento que está en vivo. Finalízalo o cancélalo antes de eliminarlo."
-                : "No puedes eliminar un evento que ya finalizó.";
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", reason));
+            if (event.getStatus() == EventStatus.LIVE) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "No puedes eliminar un evento que está en vivo. Finalízalo o cancélalo antes de eliminarlo."));
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "No se puede eliminar este evento porque ya finalizó."));
+        }
+
+        List<Survey> surveys = surveyRepository.findByEventId(eventId);
+        if (!surveys.isEmpty()) {
+            List<Long> surveyIds = surveys.stream().map(Survey::getId).toList();
+            groupSurveyRepository.deleteBySurveyIdIn(surveyIds);
+            surveyRepository.deleteAll(surveys);
+            surveyRepository.flush();
         }
 
         registrationRepository.deleteByEventId(eventId);

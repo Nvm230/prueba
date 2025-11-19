@@ -3,6 +3,7 @@ import { Client, Message } from '@stomp/stompjs';
 import { storage, tokenStorageKey } from '@/utils/storage';
 import apiClient from './apiClient';
 import { PaginatedResponse } from '@/types';
+import { ReactionSummary } from '@/types/reaction';
 
 const getWsBaseUrl = (): string => {
   // Detectar si estamos en producción (AWS) basándose en la URL actual
@@ -40,14 +41,20 @@ export interface ChatMessage {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  fileId?: number;
+  filePreview?: string;
+  stickerId?: number;
+  stickerPreview?: string;
+  reactions?: ReactionSummary[];
   createdAt: string;
 }
 
 export interface ChatMessageRequest {
   content: string;
-  fileUrl?: string;
+  fileId?: number;
   fileType?: string;
   fileName?: string;
+  stickerId?: number;
 }
 
 class ChatService {

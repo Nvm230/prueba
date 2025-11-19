@@ -35,7 +35,7 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio' }]} />
       
       {/* Welcome Section */}
       <div className="card bg-gradient-to-br from-primary-50 via-primary-100/50 to-purple-50 dark:from-primary-900/20 dark:via-primary-800/10 dark:to-purple-900/20 border-primary-200 dark:border-primary-800">

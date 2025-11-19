@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
 import EmptyState from '@/components/display/EmptyState';
@@ -15,6 +15,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDateTime } from '@/utils/formatters';
 import { RegisteredUser, EventStats, CheckInPasswordResponse } from '@/types';
+import { CallSession, createCallSession, getActiveCall, CallMode } from '@/services/callService';
+import CallOverlay from '@/components/chat/CallOverlay';
 import {
   CalendarIcon,
   ClockIcon,
@@ -29,7 +31,9 @@ import {
   KeyIcon,
   PencilIcon,
   TrashIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  VideoCameraIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline';
 
 const EventDetailPage = () => {
@@ -40,6 +44,9 @@ const EventDetailPage = () => {
   const { user } = useAuth();
   const [checkInPassword, setCheckInPassword] = useState<string>('');
   const [checkInFeedback, setCheckInFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [activeCall, setActiveCall] = useState<CallSession | null>(null);
+  const [currentCall, setCurrentCall] = useState<CallSession | null>(null);
+  const [joiningCall, setJoiningCall] = useState(false);
 
   const {
     data: event,
@@ -72,7 +79,7 @@ const EventDetailPage = () => {
     queryKey: ['event-stats', eventId],
     queryFn: ({ signal }) => fetchEventStats(Number(eventId), signal),
     enabled: Boolean(eventId && event && user && (isAdmin || isCreator)),
-    refetchInterval: Boolean(event && user && (isAdmin || isCreator)) ? 5000 : false
+    refetchInterval: event && user && (isAdmin || isCreator) ? 5000 : false
   });
 
   // Query para contraseña de check-in (solo creador/admin)
@@ -188,13 +195,78 @@ const EventDetailPage = () => {
       navigate('/events');
     },
     onError: (error: any) => {
-      pushToast({ type: 'error', title: 'Error', description: error.message || 'No se pudo eliminar el evento' });
+      const description = error?.response?.data?.error || error.message || 'No se pudo eliminar el evento';
+      pushToast({ type: 'error', title: 'Error', description });
     }
   });
 
   const canManageEvent = user && (user.role === 'ADMIN' || user.role === 'SERVER');
   const canEditEvent = isAdmin || isCreator;
   const canDeleteEvent = isAdmin;
+
+  const refreshActiveCall = useCallback(async () => {
+    if (!event) return;
+    try {
+      const active = await getActiveCall('EVENT', event.id);
+      setActiveCall(active);
+    } catch (error) {
+      console.error('No se pudo obtener el estado de la llamada', error);
+    }
+  }, [event]);
+
+  useEffect(() => {
+    if (event?.status === 'LIVE') {
+      refreshActiveCall();
+    } else {
+      setActiveCall(null);
+    }
+  }, [event?.status, refreshActiveCall]);
+
+  const handleStartCall = async (mode: CallMode) => {
+    if (!event) return;
+    setJoiningCall(true);
+    try {
+      const session = await createCallSession({
+        contextType: 'EVENT',
+        contextId: event.id,
+        mode
+      });
+      setActiveCall(session);
+      setCurrentCall(session);
+    } catch (error: any) {
+      pushToast({
+        type: 'error',
+        title: 'No se pudo iniciar la llamada',
+        description: error?.response?.data?.message || 'Intenta nuevamente.'
+      });
+    } finally {
+      setJoiningCall(false);
+    }
+  };
+
+  const handleJoinCall = async () => {
+    if (!event) return;
+    setJoiningCall(true);
+    try {
+      let session = activeCall;
+      if (!session) {
+        session = await getActiveCall('EVENT', event.id);
+        if (!session) {
+          pushToast({
+            type: 'info',
+            title: 'Sin llamada activa',
+            description: 'El organizador aún no inicia la llamada.'
+          });
+          return;
+        }
+      }
+      setCurrentCall(session);
+    } catch (error) {
+      pushToast({ type: 'error', title: 'Error', description: 'No fue posible unirse a la llamada.' });
+    } finally {
+      setJoiningCall(false);
+    }
+  };
 
   if (isLoading) {
     return <LoadingOverlay message="Cargando evento" />;
@@ -310,6 +382,58 @@ const EventDetailPage = () => {
           </div>
         )}
       </div>
+
+      {event.status === 'LIVE' && (
+        <div className="card flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Salas de audio y video</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Conecta con los asistentes mediante videollamadas en vivo.
+              </p>
+            </div>
+            {activeCall && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">
+                En curso
+              </span>
+            )}
+          </div>
+          {canEditEvent ? (
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => handleStartCall('NORMAL')}
+                className="btn-primary inline-flex items-center gap-2"
+                disabled={joiningCall}
+              >
+                <VideoCameraIcon className="h-5 w-5" />
+                {joiningCall ? 'Activando...' : 'Iniciar modo normal'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartCall('CONFERENCE')}
+                className="btn-secondary inline-flex items-center gap-2"
+                disabled={joiningCall}
+              >
+                <MegaphoneIcon className="h-5 w-5" />
+                {joiningCall ? 'Activando...' : 'Iniciar modo conferencia'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={handleJoinCall}
+                className="btn-primary inline-flex items-center gap-2"
+                disabled={joiningCall || !activeCall}
+              >
+                <VideoCameraIcon className="h-5 w-5" />
+                {joiningCall ? 'Conectando...' : activeCall ? 'Unirse a la llamada' : 'Esperando al organizador'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Registration & Check-in Section */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -651,6 +775,15 @@ const EventDetailPage = () => {
         </div>
         <ChatWindow eventId={Number(eventId!)} eventStatus={event.status} isLive={event.status === 'LIVE'} />
       </div>
+      {currentCall && (
+        <CallOverlay
+          session={currentCall}
+          onClose={() => {
+            setCurrentCall(null);
+            refreshActiveCall();
+          }}
+        />
+      )}
     </div>
   );
 };

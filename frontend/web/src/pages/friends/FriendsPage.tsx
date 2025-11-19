@@ -124,7 +124,7 @@ const FriendsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Amigos' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Amigos' }]} />
 
       <div className="card">
         <div className="flex items-center gap-3 mb-6">

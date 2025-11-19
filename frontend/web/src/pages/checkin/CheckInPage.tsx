@@ -76,7 +76,7 @@ const CheckInPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Registro QR' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Registro QR' }]} />
       
       <div className="card max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">

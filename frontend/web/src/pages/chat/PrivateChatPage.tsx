@@ -39,7 +39,8 @@ const PrivateChatPage = () => {
   const { data: conversations, isLoading: conversationsLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: ({ signal }) => getConversations(signal),
-    refetchInterval: 10000 // Actualizar cada 10 segundos (reducido para evitar loops)
+    refetchInterval: 10000, // Actualizar cada 10 segundos (reducido para evitar loops)
+    staleTime: 0 // Siempre considerar los datos como obsoletos para forzar refresco
   });
 
   const { data: friends, isLoading: friendsLoading } = useQuery({
@@ -68,7 +69,7 @@ const PrivateChatPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Breadcrumbs items={[{ label: 'Dashboard', to: '/' }, { label: 'Chat' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Chat' }]} />
 
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Lista de conversaciones/amigos */}

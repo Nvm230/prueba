@@ -1,13 +1,14 @@
 package com.univibe.survey.web;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import com.univibe.common.dto.PageResponse;
 import com.univibe.event.model.Event;
 import com.univibe.event.repo.EventRepository;
-import com.univibe.group.repo.GroupSurveyRepository;
 import com.univibe.group.model.GroupSurvey;
+import com.univibe.group.repo.GroupSurveyRepository;
 import com.univibe.registration.repo.RegistrationRepository;
 import com.univibe.survey.dto.SurveyResponseDTO;
 import com.univibe.survey.model.Survey;
@@ -17,10 +18,12 @@ import com.univibe.survey.repo.SurveyAnswerRepository;
 import com.univibe.survey.repo.SurveyRepository;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -43,7 +46,11 @@ public class SurveyController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public List<SurveyResponseDTO> list(@RequestParam Optional<Long> eventId, Authentication auth) {
+    public PageResponse<SurveyResponseDTO> list(
+            @RequestParam Optional<Long> eventId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication auth) {
         String email = (String) auth.getPrincipal();
         User user = userRepository.findByEmail(email).orElseThrow();
         boolean isAdmin = user.getRole().name().equals("ADMIN") || user.getRole().name().equals("SERVER");
@@ -51,23 +58,22 @@ public class SurveyController {
         
         if (eventId.isPresent()) {
             Long eId = eventId.get();
-            // Si es admin, puede ver todas las encuestas del evento
-            if (isAdmin) {
-                surveys = surveyRepository.findByEventId(eId);
-                return surveys.stream().map(SurveyResponseDTO::new).toList();
+            var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+            if (!isAdmin) {
+                boolean isRegistered = registrationRepository.findByUserIdAndEventId(user.getId(), eId).isPresent();
+                if (!isRegistered) {
+                    return PageResponse.fromList(List.of(), page, size);
+                }
             }
-            // Si no es admin, solo puede ver encuestas de eventos donde está registrado
-            boolean isRegistered = registrationRepository.findByUserIdAndEventId(user.getId(), eId).isPresent();
-            if (!isRegistered) {
-                return List.of(); // No registrado, no puede ver encuestas
-            }
-            surveys = surveyRepository.findByEventId(eId);
-            return surveys.stream().map(SurveyResponseDTO::new).toList();
+            var surveyPage = surveyRepository.findByEventId(eId, pageable).map(SurveyResponseDTO::new);
+            return PageResponse.from(surveyPage);
         }
         
         // Sin eventId: solo admins pueden ver todas las encuestas
         if (isAdmin) {
-            surveys = surveyRepository.findAll();
+            var surveyPage = surveyRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id")))
+                    .map(SurveyResponseDTO::new);
+            return PageResponse.from(surveyPage);
         } else {
             // Usuarios normales: encuestas de eventos donde están registrados + encuestas de grupos donde son miembros
             List<Survey> allSurveys = surveyRepository.findAll();
@@ -86,7 +92,9 @@ public class SurveyController {
                     })
                     .toList();
         }
-        return surveys.stream().map(SurveyResponseDTO::new).toList();
+        surveys.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+        List<SurveyResponseDTO> dtoList = surveys.stream().map(SurveyResponseDTO::new).toList();
+        return PageResponse.fromList(dtoList, page, size);
     }
 
     @GetMapping("/{surveyId}")

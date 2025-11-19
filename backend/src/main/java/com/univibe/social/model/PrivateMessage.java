@@ -1,5 +1,7 @@
 package com.univibe.social.model;
 
+import com.univibe.media.model.StoredFile;
+import com.univibe.sticker.model.Sticker;
 import com.univibe.user.model.User;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -31,6 +33,16 @@ public class PrivateMessage {
     @Column(length = 255)
     private String fileName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_asset_id")
+    private StoredFile attachment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Sticker sticker;
+
+    @Column(length = 30)
+    private String mode;
+
     @Column(nullable = false)
     private boolean readFlag = false;
 
@@ -51,6 +63,12 @@ public class PrivateMessage {
     public void setFileType(String fileType) { this.fileType = fileType; }
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
+    public StoredFile getAttachment() { return attachment; }
+    public void setAttachment(StoredFile attachment) { this.attachment = attachment; }
+    public Sticker getSticker() { return sticker; }
+    public void setSticker(Sticker sticker) { this.sticker = sticker; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
     public boolean isReadFlag() { return readFlag; }
     public void setReadFlag(boolean readFlag) { this.readFlag = readFlag; }
     public Instant getCreatedAt() { return createdAt; }

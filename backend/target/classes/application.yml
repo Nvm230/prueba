@@ -15,7 +15,6 @@ spring:
     show-sql: false
   flyway:
     enabled: false
-
   mail:
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:0}
@@ -28,6 +27,11 @@ spring:
           starttls:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+    static-path-pattern: /static/**
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -35,7 +39,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,mappings
   endpoint:
     health:
       show-details: when_authorized
@@ -43,3 +47,4 @@ management:
 logging:
   level:
     root: INFO
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG

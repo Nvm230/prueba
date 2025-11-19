@@ -7,9 +7,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { UserPlusIcon } from '@heroicons/react/24/outline';
 
+const nombreValido = z
+  .string()
+  .min(3, 'Tu nombre debe tener al menos 3 caracteres')
+  .max(100, 'El nombre es demasiado largo')
+  .regex(/^[A-Za-zÁÉÍÓÚáéíóúÑñÜü' -]+$/, 'Usa solo letras y espacios para tu nombre');
+
 const schema = z
   .object({
-    name: z.string().min(3, 'Tu nombre debe tener al menos 3 caracteres').max(100, 'El nombre es demasiado largo'),
+    name: nombreValido,
     email: z.string().email('Ingresa un correo válido'),
     password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
     confirmPassword: z.string().min(1, 'Confirma tu contraseña')

@@ -15,6 +15,8 @@ const FriendsPage = lazy(() => import('@/pages/friends/FriendsPage'));
 const PrivateChatPage = lazy(() => import('@/pages/chat/PrivateChatPage'));
 const GroupDetailPage = lazy(() => import('@/pages/groups/GroupDetailPage'));
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
+const AdminStickersPage = lazy(() => import('@/pages/admin/AdminStickersPage'));
+const AdminSupportPage = lazy(() => import('@/pages/admin/AdminSupportPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
@@ -41,7 +43,9 @@ export const privateRoutes = [
   { path: '/friends', element: <FriendsPage /> },
   { path: '/chat', element: <PrivateChatPage /> },
   { path: '/chat/:userId', element: <PrivateChatPage /> },
-  { path: '/admin/users', element: <AdminUsersPage /> }
+  { path: '/admin/users', element: <AdminUsersPage /> },
+  { path: '/admin/stickers', element: <AdminStickersPage /> },
+  { path: '/admin/support', element: <AdminSupportPage /> }
 ];
 
 export const fallbackRoute = { path: '*', element: <NotFoundPage /> };

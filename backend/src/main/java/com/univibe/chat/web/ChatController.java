@@ -3,13 +3,18 @@ package com.univibe.chat.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.univibe.chat.dto.ChatMessageRequest;
 import com.univibe.chat.dto.ChatMessageResponse;
-import com.univibe.chat.dto.UserInfo;
 import com.univibe.chat.model.ChatMessage;
 import com.univibe.chat.repo.ChatMessageRepository;
+import com.univibe.chat.service.MessageResponseMapper;
 import com.univibe.common.dto.PageResponse;
 import com.univibe.event.model.Event;
 import com.univibe.event.model.EventStatus;
 import com.univibe.event.repo.EventRepository;
+import com.univibe.media.model.FileScope;
+import com.univibe.media.model.StoredFile;
+import com.univibe.media.service.FileStorageService;
+import com.univibe.sticker.model.Sticker;
+import com.univibe.sticker.service.StickerService;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
 import org.springframework.data.domain.Pageable;
@@ -29,19 +34,28 @@ public class ChatController {
     private final EventRepository eventRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
+    private final StickerService stickerService;
     private final ObjectMapper objectMapper;
+    private final MessageResponseMapper messageResponseMapper;
 
     public ChatController(
             SimpMessagingTemplate messagingTemplate,
             EventRepository eventRepository,
             ChatMessageRepository chatMessageRepository,
             UserRepository userRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            FileStorageService fileStorageService,
+            StickerService stickerService,
+            MessageResponseMapper messageResponseMapper) {
         this.messagingTemplate = messagingTemplate;
         this.eventRepository = eventRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.fileStorageService = fileStorageService;
+        this.stickerService = stickerService;
+        this.messageResponseMapper = messageResponseMapper;
     }
 
     @MessageMapping("/chat.{eventId}.send")
@@ -62,27 +76,35 @@ public class ChatController {
             message.setEvent(event);
             message.setUser(user);
             message.setContent(request.getContent());
-            message.setFileUrl(request.getFileUrl());
-            message.setFileType(request.getFileType());
-            message.setFileName(request.getFileName());
+
+            if (request.getStickerId() != null) {
+                Sticker sticker = stickerService.findById(request.getStickerId());
+                if (sticker != null) {
+                    message.setSticker(sticker);
+                    message.setAttachment(sticker.getFile());
+                    message.setFileType(sticker.getFile().getContentType());
+                    message.setFileName(sticker.getNombre());
+                    message.setFileUrl("/api/files/" + sticker.getFile().getId());
+                }
+            } else if (request.getFileId() != null) {
+                StoredFile storedFile = fileStorageService.findById(request.getFileId());
+                if (storedFile != null) {
+                    if (storedFile.getScope() != FileScope.EVENT_CHAT || storedFile.getScopeId() == null || !storedFile.getScopeId().equals(eventId)) {
+                        throw new IllegalArgumentException("El archivo no corresponde a este evento");
+                    }
+                    message.setAttachment(storedFile);
+                    message.setFileType(storedFile.getContentType());
+                    message.setFileName(storedFile.getFileName());
+                    message.setFileUrl("/api/files/" + storedFile.getId());
+                }
+            } else {
+                message.setFileUrl(request.getFileUrl());
+                message.setFileType(request.getFileType());
+                message.setFileName(request.getFileName());
+            }
             ChatMessage saved = chatMessageRepository.save(message);
 
-            // Crear respuesta con información del usuario
-            UserInfo userInfo = new UserInfo(
-                    user.getId(),
-                    user.getName(),
-                    user.getEmail(),
-                    user.getProfilePictureUrl()
-            );
-            ChatMessageResponse response = new ChatMessageResponse(
-                    saved.getId(),
-                    userInfo,
-                    saved.getContent(),
-                    saved.getFileUrl(),
-                    saved.getFileType(),
-                    saved.getFileName(),
-                    saved.getCreatedAt()
-            );
+            ChatMessageResponse response = messageResponseMapper.toChatResponse(saved);
 
             // Enviar por WebSocket
             messagingTemplate.convertAndSend("/topic/events." + eventId, objectMapper.writeValueAsString(response));
@@ -96,23 +118,6 @@ public class ChatController {
             @PathVariable Long eventId,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
         var page = chatMessageRepository.findByEventIdOrderByCreatedAtAsc(eventId, pageable);
-        return PageResponse.from(page.map(msg -> {
-            User u = msg.getUser();
-            UserInfo userInfo = new UserInfo(
-                    u.getId(),
-                    u.getName(),
-                    u.getEmail(),
-                    u.getProfilePictureUrl()
-            );
-            return new ChatMessageResponse(
-                    msg.getId(),
-                    userInfo,
-                    msg.getContent(),
-                    msg.getFileUrl(),
-                    msg.getFileType(),
-                    msg.getFileName(),
-                    msg.getCreatedAt()
-            );
-        }));
+        return PageResponse.from(page.map(messageResponseMapper::toChatResponse));
     }
 }

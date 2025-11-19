@@ -1,9 +1,12 @@
 import apiClient from './apiClient';
-import { Survey } from '@/types';
+import { Survey, PaginatedResponse } from '@/types';
 
-export const fetchSurveys = (filters: { eventId?: number } = {}, signal?: AbortSignal) =>
+export const fetchSurveys = (
+  filters: { eventId?: number; page?: number; size?: number } = {},
+  signal?: AbortSignal
+) =>
   apiClient
-    .get<Survey[]>('/api/surveys', {
+    .get<PaginatedResponse<Survey>>('/api/surveys', {
       params: filters,
       signal
     })

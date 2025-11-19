@@ -1,7 +1,7 @@
 package com.univibe.group.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.univibe.chat.dto.UserInfo;
+import com.univibe.chat.service.MessageResponseMapper;
 import com.univibe.common.dto.PageResponse;
 import com.univibe.event.model.Event;
 import com.univibe.event.model.EventVisibility;
@@ -15,9 +15,14 @@ import com.univibe.group.model.GroupEvent;
 import com.univibe.group.model.GroupMessage;
 import com.univibe.group.model.GroupSurvey;
 import com.univibe.group.repo.*;
+import com.univibe.media.model.FileScope;
+import com.univibe.media.model.StoredFile;
+import com.univibe.media.service.FileStorageService;
 import com.univibe.survey.model.Survey;
 import com.univibe.survey.model.SurveyQuestion;
 import com.univibe.survey.repo.SurveyRepository;
+import com.univibe.sticker.model.Sticker;
+import com.univibe.sticker.service.StickerService;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
 import org.springframework.data.domain.Pageable;
@@ -50,6 +55,9 @@ public class GroupChannelController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final EventSecurityService eventSecurityService;
+    private final FileStorageService fileStorageService;
+    private final StickerService stickerService;
+    private final MessageResponseMapper messageResponseMapper;
 
     public GroupChannelController(
             GroupRepository groupRepository,
@@ -62,7 +70,10 @@ public class GroupChannelController {
             UserRepository userRepository,
             SimpMessagingTemplate messagingTemplate,
             ObjectMapper objectMapper,
-            EventSecurityService eventSecurityService) {
+            EventSecurityService eventSecurityService,
+            FileStorageService fileStorageService,
+            StickerService stickerService,
+            MessageResponseMapper messageResponseMapper) {
         this.groupRepository = groupRepository;
         this.groupMessageRepository = groupMessageRepository;
         this.groupAnnouncementRepository = groupAnnouncementRepository;
@@ -74,6 +85,9 @@ public class GroupChannelController {
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
         this.eventSecurityService = eventSecurityService;
+        this.fileStorageService = fileStorageService;
+        this.stickerService = stickerService;
+        this.messageResponseMapper = messageResponseMapper;
     }
 
     // Verificar que el usuario puede enviar mensajes al grupo
@@ -113,27 +127,34 @@ public class GroupChannelController {
             message.setGroup(group);
             message.setSender(sender);
             message.setContent(request.getContent());
-            message.setFileUrl(request.getFileUrl());
-            message.setFileType(request.getFileType());
-            message.setFileName(request.getFileName());
-            GroupMessage saved = groupMessageRepository.save(message);
 
-            // Crear respuesta
-            UserInfo senderInfo = new UserInfo(
-                    sender.getId(),
-                    sender.getName(),
-                    sender.getEmail(),
-                    sender.getProfilePictureUrl()
-            );
-            GroupMessageResponse response = new GroupMessageResponse(
-                    saved.getId(),
-                    senderInfo,
-                    saved.getContent(),
-                    saved.getFileUrl(),
-                    saved.getFileType(),
-                    saved.getFileName(),
-                    saved.getCreatedAt()
-            );
+            if (request.getStickerId() != null) {
+                Sticker sticker = stickerService.findById(request.getStickerId());
+                if (sticker != null) {
+                    message.setSticker(sticker);
+                    message.setAttachment(sticker.getFile());
+                    message.setFileType(sticker.getFile().getContentType());
+                    message.setFileName(sticker.getNombre());
+                    message.setFileUrl("/api/files/" + sticker.getFile().getId());
+                }
+            } else if (request.getFileId() != null) {
+                StoredFile storedFile = fileStorageService.findById(request.getFileId());
+                if (storedFile != null) {
+                    if (storedFile.getScope() != FileScope.GROUP_CHAT || storedFile.getScopeId() == null || !storedFile.getScopeId().equals(groupId)) {
+                        throw new IllegalArgumentException("El archivo no corresponde a este grupo");
+                    }
+                    message.setAttachment(storedFile);
+                    message.setFileType(storedFile.getContentType());
+                    message.setFileName(storedFile.getFileName());
+                    message.setFileUrl("/api/files/" + storedFile.getId());
+                }
+            } else {
+                message.setFileUrl(request.getFileUrl());
+                message.setFileType(request.getFileType());
+                message.setFileName(request.getFileName());
+            }
+            GroupMessage saved = groupMessageRepository.save(message);
+            GroupMessageResponse response = messageResponseMapper.toGroupResponse(saved);
 
             // Enviar por WebSocket a todos los miembros del grupo
             messagingTemplate.convertAndSend("/topic/groups." + groupId, objectMapper.writeValueAsString(response));
@@ -157,19 +178,7 @@ public class GroupChannelController {
         }
 
         var page = groupMessageRepository.findByGroupIdOrderByCreatedAtAsc(groupId, pageable);
-        return PageResponse.from(page.map(msg -> {
-            User u = msg.getSender();
-            UserInfo senderInfo = new UserInfo(u.getId(), u.getName(), u.getEmail(), u.getProfilePictureUrl());
-            return new GroupMessageResponse(
-                    msg.getId(),
-                    senderInfo,
-                    msg.getContent(),
-                    msg.getFileUrl(),
-                    msg.getFileType(),
-                    msg.getFileName(),
-                    msg.getCreatedAt()
-            );
-        }));
+        return PageResponse.from(page.map(messageResponseMapper::toGroupResponse));
     }
 
     @PostMapping("/announcements")

@@ -29,9 +29,10 @@ const WS_BASE_URL = getWsBaseUrl();
 
 export interface GroupMessageRequest {
   content: string;
-  fileUrl?: string;
+  fileId?: number;
   fileType?: string;
   fileName?: string;
+  stickerId?: number;
 }
 
 class GroupChannelService {

@@ -1,15 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { chatService, ChatMessage, fetchChatMessages } from '@/services/chatService';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/display/Avatar';
-import { PaperClipIcon, PhotoIcon, DocumentIcon, XMarkIcon, CameraIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import {
+  PaperClipIcon,
+  PhotoIcon,
+  DocumentIcon,
+  XMarkIcon,
+  CameraIcon,
+  ArrowDownTrayIcon,
+  FaceSmileIcon
+} from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/contexts/ToastContext';
+import { uploadFile as uploadAttachment, downloadFileById } from '@/services/fileService';
+import ReactionPicker from './ReactionPicker';
+import MessageReactions from './MessageReactions';
+import { toggleReaction } from '@/services/messageReactionService';
+import StickerPicker from './StickerPicker';
+import { Sticker } from '@/services/stickerService';
 
 interface ChatWindowProps {
   eventId: number;
-  eventStatus: string;
   isLive: boolean;
 }
 
@@ -26,16 +39,29 @@ const ALLOWED_FILE_TYPES = [
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
 const MAX_FILE_SIZE_MB = 10;
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
   const { user } = useAuth();
   const { pushToast } = useToast();
   const [chatInput, setChatInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedFile, setSelectedFile] = useState<{ file: File; preview?: string } | null>(null);
+  const [reactionTarget, setReactionTarget] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const upsertMessage = useCallback((updated: ChatMessage) => {
+    setMessages((prev) => {
+      const index = prev.findIndex((m) => m.id === updated.id);
+      if (index !== -1) {
+        const next = [...prev];
+        next[index] = updated;
+        return next;
+      }
+      return [...prev, updated];
+    });
+  }, []);
 
   const { data: savedMessages, refetch: refetchMessages } = useQuery({
     queryKey: ['chatMessages', eventId],
@@ -59,12 +85,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
     const disconnect = chatService.connect(
       eventId,
       (message: ChatMessage) => {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id)) {
-            return prev;
-          }
-          return [...prev, message];
-        });
+        upsertMessage(message);
       },
       (error) => {
         console.error('Chat error:', error);
@@ -78,7 +99,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       disconnect();
       setIsConnected(false);
     };
-  }, [isLive, eventId, user]);
+  }, [isLive, eventId, upsertMessage, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -143,38 +164,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
     }
   };
 
-  const uploadFile = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleSendMessage = async () => {
     if ((!chatInput.trim() && !selectedFile) || !user) return;
 
     try {
-      let fileUrl: string | undefined;
+      let fileId: number | undefined;
       let fileType: string | undefined;
       let fileName: string | undefined;
 
       if (selectedFile) {
-        fileUrl = await uploadFile(selectedFile.file);
-        fileType = selectedFile.file.type;
+        const uploaded = await uploadAttachment(selectedFile.file, 'EVENT_CHAT', eventId);
+        fileId = uploaded.id;
+        fileType = selectedFile.file.type || uploaded.contentType;
         fileName = selectedFile.file.name;
       }
 
-      const messageContent = chatInput.trim() || (selectedFile ? `📎 ${selectedFile.file.name}` : '');
+      const trimmedContent = chatInput.trim();
+      const hasAttachment = Boolean(selectedFile);
+      const isImageAttachment = selectedFile ? selectedFile.file.type.startsWith('image/') : false;
+      const messageContent =
+        trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 
       if (isLive && isConnected) {
         chatService.sendMessage(eventId, {
           content: messageContent,
-          fileUrl,
+          fileId,
           fileType,
           fileName
         });
@@ -200,21 +214,48 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
     }
   };
 
-  const downloadFile = (fileUrl: string, fileName: string, fileType?: string) => {
+  const handleReaction = async (messageId: number, emoji: string) => {
     try {
-      let dataUrl: string;
-      if (fileUrl.startsWith('data:')) {
-        dataUrl = fileUrl;
-      } else {
-        const base64Data = fileUrl.includes(',') ? fileUrl.split(',')[1] : fileUrl;
-        dataUrl = `data:${fileType || 'image/png'};base64,${base64Data}`;
+      const updated = await toggleReaction<ChatMessage>('EVENT_CHAT', messageId, emoji);
+      upsertMessage(updated);
+    } catch (error) {
+      console.error('No se pudo registrar la reacción', error);
+      pushToast({
+        type: 'error',
+        title: 'Error al reaccionar',
+        description: 'Intenta nuevamente.'
+      });
+    } finally {
+      setReactionTarget(null);
+    }
+  };
+
+  const downloadFile = async (message: ChatMessage) => {
+    try {
+      let blob: Blob | null = null;
+      if (message.fileId) {
+        blob = await downloadFileById(message.fileId);
+      } else if (message.fileUrl) {
+        const dataUrl = message.fileUrl.startsWith('data:')
+          ? message.fileUrl
+          : `data:${message.fileType || 'application/octet-stream'};base64,${
+              message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl
+            }`;
+        const response = await fetch(dataUrl);
+        blob = await response.blob();
       }
-      
+
+      if (!blob) {
+        throw new Error('Archivo no disponible');
+      }
+
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = fileName;
+      link.href = url;
+      link.download = message.fileName || 'archivo';
       document.body.appendChild(link);
       link.click();
+      window.URL.revokeObjectURL(url);
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -235,6 +276,46 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
       return <DocumentIcon className="h-5 w-5" />;
     }
     return <DocumentIcon className="h-5 w-5" />;
+  };
+
+  const getImageSource = (message: ChatMessage) => {
+    // Priorizar stickerPreview si existe y no está vacío
+    if (message.stickerPreview && message.stickerPreview.trim() !== '') {
+      return `data:image/png;base64,${message.stickerPreview}`;
+    }
+    // Usar filePreview si existe y no está vacío
+    if (message.filePreview && message.filePreview.trim() !== '') {
+      return `data:${message.fileType || 'image/png'};base64,${message.filePreview}`;
+    }
+    // Si hay fileUrl, intentar usarlo
+    if (message.fileUrl) {
+      if (message.fileUrl.startsWith('data:')) {
+        // Validar que la URL de data tenga contenido después de la coma
+        const commaIndex = message.fileUrl.indexOf(',');
+        if (commaIndex !== -1 && message.fileUrl.length > commaIndex + 1) {
+          return message.fileUrl;
+        }
+        return undefined;
+      }
+      // Si es una URL relativa, usar directamente
+      if (message.fileUrl.startsWith('/api/files/')) {
+        return message.fileUrl;
+      }
+      // Intentar extraer base64 si está en el formato data:...
+      const base64Data = message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl;
+      if (base64Data && base64Data.trim() !== '') {
+        return `data:${message.fileType || 'image/png'};base64,${base64Data}`;
+      }
+    }
+    return undefined;
+  };
+
+  const handleStickerSelect = (sticker: Sticker) => {
+    if (!user || !isLive || !isConnected) return;
+    chatService.sendMessage(eventId, {
+      content: '[Sticker]',
+      stickerId: sticker.id
+    });
   };
 
   return (
@@ -283,20 +364,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                       : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
                   }`}
                 >
-                  {msg.fileUrl && (
+                  {(msg.fileUrl || msg.filePreview || msg.stickerPreview || msg.stickerId) && (
                     <div className="mb-2">
-                      {msg.fileType?.startsWith('image/') ? (
-                        <div className="relative group">
+                      {(msg.fileType?.startsWith('image/') || msg.stickerId || msg.stickerPreview) ? (
+                        <div className={`relative group ${msg.stickerId || msg.stickerPreview ? 'inline-block' : ''}`}>
                           <img
-                            src={(() => {
-                              if (msg.fileUrl.startsWith('data:')) {
-                                return msg.fileUrl;
-                              }
-                              const base64Data = msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl;
-                              return `data:${msg.fileType || 'image/png'};base64,${base64Data}`;
-                            })()}
+                            src={getImageSource(msg)}
                             alt={msg.fileName || 'Imagen'}
-                            className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${
+                              msg.stickerId || msg.stickerPreview
+                                ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
+                                : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
+                            }`}
                             onError={(e) => {
                               console.error('Error loading image:', {
                                 fileUrl: msg.fileUrl?.substring(0, 100),
@@ -304,15 +383,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                                 fileName: msg.fileName
                               });
                               const img = e.target as HTMLImageElement;
-                              const base64Data = msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl;
-                              img.src = `data:${msg.fileType || 'image/png'};base64,${base64Data}`;
+                              const fallback = getImageSource(msg);
+                              if (fallback) {
+                                img.src = fallback;
+                              }
                             }}
                             onClick={() => {
-                              const imgSrc = msg.fileUrl.startsWith('data:') 
-                                ? msg.fileUrl 
-                                : `data:${msg.fileType || 'image/png'};base64,${msg.fileUrl.includes(',') ? msg.fileUrl.split(',')[1] : msg.fileUrl}`;
+                              const imgSrc = getImageSource(msg);
                               const newWindow = window.open();
-                              if (newWindow) {
+                              if (newWindow && imgSrc) {
                                 newWindow.document.write(`<img src="${imgSrc}" style="max-width: 100%; height: auto;" />`);
                               }
                             }}
@@ -320,7 +399,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              downloadFile(msg.fileUrl!, msg.fileName || 'imagen.png', msg.fileType);
+                              downloadFile(msg);
                             }}
                             className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Descargar imagen"
@@ -336,7 +415,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                             <p className="text-xs text-slate-500 dark:text-slate-400">PDF</p>
                           </div>
                           <button
-                            onClick={() => downloadFile(msg.fileUrl!, msg.fileName || 'documento.pdf', msg.fileType)}
+                            onClick={() => downloadFile(msg)}
                             className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                             title="Descargar PDF"
                           >
@@ -348,7 +427,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                           {getFileIcon(msg.fileType)}
                           <span className="text-sm flex-1">{msg.fileName || 'Archivo'}</span>
                           <button
-                            onClick={() => downloadFile(msg.fileUrl!, msg.fileName || 'archivo', msg.fileType)}
+                            onClick={() => downloadFile(msg)}
                             className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
                             title="Descargar archivo"
                           >
@@ -358,7 +437,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
                       )}
                     </div>
                   )}
-                  {msg.content && <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>}
+                  {msg.content && msg.content !== '[Sticker]' && !msg.stickerId && (
+                    <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                  )}
+                </div>
+                <MessageReactions
+                  reactions={msg.reactions}
+                  currentUserId={user?.id}
+                  onReact={(emoji) => handleReaction(msg.id, emoji)}
+                />
+                <div className={`flex items-center gap-2 mt-1 ${msg.user?.id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setReactionTarget((prev) => (prev === msg.id ? null : msg.id))}
+                      className="rounded-full p-1.5 text-sm text-white/80 hover:bg-white/20"
+                      disabled={!user}
+                    >
+                      <FaceSmileIcon className="h-4 w-4" />
+                    </button>
+                    {reactionTarget === msg.id && (
+                      <ReactionPicker
+                        onSelect={(emoji) => handleReaction(msg.id, emoji)}
+                        onClose={() => setReactionTarget(null)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -429,6 +533,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
               >
                 <CameraIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
               </button>
+              <StickerPicker onSelect={handleStickerSelect} />
             </div>
             <input
               type="text"
@@ -457,7 +562,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, eventStatus, isLive })
         </div>
       ) : (
         <div className="text-center text-sm text-slate-500 dark:text-slate-400 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
-          El chat está cerrado. Este evento ha finalizado.
+          El chat está cerrado.
         </div>
       )}
     </div>
