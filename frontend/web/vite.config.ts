@@ -33,14 +33,25 @@ const requestPolyfillPlugin = () => {
       let fixedCode = code;
       let modified = false;
       
-      // Patrón: const { Request } = variable (donde variable puede ser undefined)
-      const destructurePattern = /(const|let|var)\s*\{\s*Request\s*\}\s*=\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*[;,]/g;
-      if (destructurePattern.test(code)) {
-        fixedCode = fixedCode.replace(destructurePattern, (match, keyword, varName) => {
-          modified = true;
-          return keyword + ' Request = (typeof ' + varName + ' !== "undefined" && ' + varName + ' && typeof ' + varName + '.Request !== "undefined" ? ' + varName + '.Request : (typeof globalThis !== "undefined" ? globalThis.Request : (typeof window !== "undefined" ? window.Request : (typeof self !== "undefined" ? self.Request : undefined))));';
-        });
-      }
+      // Patrón más agresivo: capturar CUALQUIER desestructuración de Request
+      // Buscar: const { Request } = algo; o const{Request}=algo; o const {Request}=algo;
+      // Capturar cualquier expresión después del = (puede ser variable, undefined, expresión compleja, etc)
+      const destructurePattern = /(const|let|var)\s*\{\s*Request\s*\}\s*=\s*([^;,\n]+)\s*[;,\n]/g;
+      
+      // Reemplazar todas las ocurrencias
+      fixedCode = fixedCode.replace(destructurePattern, (match, keyword, expr) => {
+        modified = true;
+        // Limpiar espacios en blanco de la expresión
+        expr = expr.trim();
+        
+        // Si es undefined literal, usar polyfill directo
+        if (expr === 'undefined') {
+          return keyword + ' Request = (typeof globalThis!=="undefined"&&globalThis.Request?globalThis.Request:(typeof window!=="undefined"&&window.Request?window.Request:(typeof self!=="undefined"&&self.Request?self.Request:function(){throw new Error("Request is not available");})));';
+        }
+        
+        // Para cualquier otra expresión, envolver en try-catch y usar fallback
+        return keyword + ' Request = (function(){try{var m=' + expr + ';if(m&&typeof m!=="undefined"&&typeof m.Request!=="undefined")return m.Request;}catch(e){}if(typeof globalThis!=="undefined"&&globalThis.Request)return globalThis.Request;if(typeof window!=="undefined"&&window.Request)return window.Request;if(typeof self!=="undefined"&&self.Request)return self.Request;return function(){throw new Error("Request is not available");};})();';
+      });
       
       // Inyectar polyfill al inicio de cada chunk principal
       if (chunk.isEntry || (chunk.fileName && chunk.fileName.includes('index-'))) {
