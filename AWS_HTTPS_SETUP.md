@@ -43,13 +43,7 @@ sudo apt install certbot
 sudo certbot certonly --standalone -d tu-dominio.com -d www.tu-dominio.com
 ```
 
-3. **Si solo tienes IP pública (sin dominio):**
-
-Let's Encrypt requiere un dominio. Si no tienes uno, puedes:
-- Usar un servicio como [No-IP](https://www.noip.com/) o [DuckDNS](https://www.duckdns.org/) para obtener un dominio gratuito
-- O usar la Opción 2 (certificado autofirmado para pruebas)
-
-4. **Copiar certificados al directorio del proyecto:**
+3. **Copiar certificados al directorio del proyecto:**
 
 ```bash
 # Los certificados estarán en /etc/letsencrypt/live/tu-dominio.com/
@@ -60,7 +54,7 @@ sudo chmod 644 /ruta/al/proyecto/ssl/cert.pem
 sudo chmod 600 /ruta/al/proyecto/ssl/key.pem
 ```
 
-5. **Renovación automática:**
+4. **Renovación automática:**
 
 Agrega un cron job para renovar automáticamente:
 
@@ -160,9 +154,10 @@ args:
 ### 3. Configurar Security Groups en AWS
 
 Abre los siguientes puertos en tu Security Group de EC2:
-- **Puerto 80 (HTTP)**: Para redirección a HTTPS
-- **Puerto 443 (HTTPS)**: Para tráfico seguro
+- **Puerto 443 (HTTPS)**: Para tráfico seguro (obligatorio)
 - **Puerto 8080 (Backend)**: Opcional, solo si necesitas acceso directo
+
+⚠️ **Nota:** El puerto 80 puede estar ocupado por Nginx del host. Docker usará solo el puerto 443 para HTTPS.
 
 ### 4. Construir y Levantar Servicios
 
@@ -189,10 +184,7 @@ docker compose -f docker-compose.aws-https.yml ps
    - Luego en "Continuar a [tu IP]" o "Proceed to [your IP]"
    - Una vez aceptada, verás la aplicación normalmente
 
-3. **Verificar que HTTP redirige a HTTPS:**
-   - `http://TU_IP_PUBLICA` debería redirigir automáticamente a `https://TU_IP_PUBLICA`
-
-4. **Probar videollamadas:**
+3. **Probar videollamadas:**
    - Las videollamadas deberían funcionar correctamente después de aceptar el certificado
    - Asegúrate de que ambos usuarios acepten la excepción del certificado
 
@@ -207,6 +199,20 @@ ls -la ssl/
 # Deberías ver:
 # -rw-r--r-- cert.pem
 # -rw------- key.pem
+```
+
+### Error: "address already in use" en puerto 80
+
+**Solución:** Esto es normal si tienes Nginx corriendo en el host. El `docker-compose.aws-https.yml` está configurado para usar solo el puerto 443. Si aún ves el error:
+
+```bash
+# Verificar qué está usando el puerto 80
+sudo lsof -i :80
+
+# Si es Nginx del host y no lo necesitas, detenerlo:
+sudo systemctl stop nginx
+# O deshabilitarlo:
+sudo systemctl disable nginx
 ```
 
 ### Error: "SSL certificate problem"
@@ -229,7 +235,7 @@ ls -la ssl/
 
 ```yaml
 environment:
-  - CORS_ALLOWED_ORIGINS=https://TU_IP_O_DOMINIO
+  - CORS_ALLOWED_ORIGINS=https://TU_IP_PUBLICA
 ```
 
 ## 📝 Notas Importantes
@@ -241,28 +247,27 @@ environment:
 2. **Certificados Autofirmados:**
    - Solo para pruebas/desarrollo
    - Los navegadores mostrarán advertencias
-   - No son adecuados para producción real
+   - No son adecuados para producción real, pero funcionan para videollamadas
 
 3. **Dominio vs IP:**
    - Let's Encrypt requiere un dominio
    - Si solo tienes IP, usa certificado autofirmado o un servicio de dominio dinámico
 
 4. **Puertos:**
-   - El puerto 80 redirige automáticamente a HTTPS (puerto 443)
-   - Asegúrate de que ambos puertos estén abiertos en Security Groups
+   - El puerto 80 puede estar ocupado por Nginx del host
+   - Docker usa solo el puerto 443 para HTTPS
+   - Accede directamente vía `https://TU_IP_PUBLICA` (sin puerto)
 
 ## ✅ Checklist de Despliegue
 
 - [ ] Certificados SSL generados/obtenidos y en `./ssl/`
-- [ ] URLs actualizadas en `docker-compose.aws-https.yml`
-- [ ] Puertos 80 y 443 abiertos en Security Groups
+- [ ] URLs actualizadas en `docker-compose.aws-https.yml` con tu IP pública
+- [ ] Puerto 443 abierto en Security Groups
 - [ ] Servicios construidos y levantados
-- [ ] Acceso vía HTTPS funciona
-- [ ] HTTP redirige a HTTPS
+- [ ] Acceso vía HTTPS funciona (`https://TU_IP_PUBLICA`)
+- [ ] Certificado aceptado en el navegador
 - [ ] Videollamadas funcionan correctamente
 
 ---
 
 **¿Necesitas ayuda?** Revisa los logs con `docker compose -f docker-compose.aws-https.yml logs -f` y verifica la configuración de certificados.
-
-

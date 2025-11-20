@@ -67,8 +67,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"   # HTTP (redirige a HTTPS)
-      - "443:443" # HTTPS
+      - "443:443"   # HTTPS (puerto 80 está ocupado por Nginx del host)
     volumes:
       # Montar certificados SSL desde el host
       # Asegúrate de tener los certificados en ./ssl/cert.pem y ./ssl/key.pem
