@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // Plugin para inyectar polyfill de Request de manera más agresiva
 const requestPolyfillPlugin = () => {
@@ -59,7 +60,18 @@ if(typeof fetch!=='undefined'){
 };
 
 export default defineConfig({
-  plugins: [requestPolyfillPlugin(), react()],
+  plugins: [
+    requestPolyfillPlugin(), 
+    react(),
+    nodePolyfills({
+      include: ['stream', 'readable-stream'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true
+      }
+    })
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -72,7 +84,15 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
-    open: false
+    open: false,
+    proxy: {
+      '/call-signal': {
+        target: 'http://localhost:8080',
+        ws: true,
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   build: {
     target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
@@ -106,6 +126,6 @@ export default defineConfig({
         global: 'globalThis'
       }
     },
-    include: ['@stomp/stompjs', 'sockjs-client']
+    include: ['@stomp/stompjs', 'sockjs-client', 'simple-peer']
   },
 });

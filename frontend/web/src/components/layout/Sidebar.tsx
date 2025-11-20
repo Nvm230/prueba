@@ -43,7 +43,7 @@ const navigation: NavigationItem[] = [
 const adminNavigation: NavigationItem[] = [
   { name: 'Administración', to: '/admin/users', icon: ShieldCheckIcon, roles: ['ADMIN', 'SERVER'] },
   { name: 'Stickers globales', to: '/admin/stickers', icon: FaceSmileIcon, roles: ['ADMIN'] },
-  { name: 'Soporte', to: '/admin/support', icon: ChatBubbleBottomCenterTextIcon, roles: ['ADMIN', 'SERVER'] }
+  { name: 'Soporte', to: '/admin/support', icon: ChatBubbleBottomCenterTextIcon, roles: ['ADMIN'] }
 ];
 
 type SidebarVariant = 'desktop' | 'mobile';

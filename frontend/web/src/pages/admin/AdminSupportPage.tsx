@@ -30,13 +30,13 @@ const AdminSupportPage = () => {
   const { data: allTickets = [] } = useQuery({
     queryKey: ['support', 'all'],
     queryFn: getAllSupportTickets,
-    enabled: Boolean(user && (user.role === 'ADMIN' || user.role === 'SERVER'))
+    enabled: Boolean(user && user.role === 'ADMIN')
   });
 
   const { data: ticketDetalle } = useQuery({
     queryKey: ['support', 'ticket', selectedTicketId],
     queryFn: () => getSupportTicket(selectedTicketId!),
-    enabled: Boolean(selectedTicketId && user && (user.role === 'ADMIN' || user.role === 'SERVER'))
+    enabled: Boolean(selectedTicketId && user && user.role === 'ADMIN')
   });
 
   const responderTicket = useMutation({
@@ -83,7 +83,7 @@ const AdminSupportPage = () => {
     );
   };
 
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'SERVER')) {
+  if (!user || user.role !== 'ADMIN') {
     return (
       <div className="space-y-6">
         <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Soporte' }]} />

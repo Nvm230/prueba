@@ -24,6 +24,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([]);
   const peersRef = useRef<Record<number, SimplePeer.Instance>>({});
+  const connectedUsersRef = useRef<Set<number>>(new Set()); // Track connected users even without streams
   const allowBroadcast = session && user ? (session.mode === 'NORMAL' || session.createdById === user.id) : false;
   const [hasRemoteParticipant, setHasRemoteParticipant] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -36,6 +37,16 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     let mounted = true;
 
     const requestStream = async (): Promise<MediaStream | null> => {
+      // En modo conferencia, solo el creador puede solicitar micrófono y cámara
+      const isConferenceMode = session.mode === 'CONFERENCE';
+      const isCreator = session.createdById === user.id;
+      
+      if (isConferenceMode && !isCreator) {
+        // En modo conferencia, usuarios que no son el creador no solicitan dispositivos
+        setMediaError('En modo conferencia, solo el anfitrión puede compartir audio y video.');
+        return null;
+      }
+
       const constraints: Array<MediaStreamConstraints> = [
         { audio: true, video: true },
         { audio: true, video: false },
@@ -90,64 +101,148 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
 
     const handleSignal = (signal: CallSignal) => {
       if (!session || !user) return;
-      switch (signal.type) {
-        case 'JOIN':
-          if (signal.from === user.id) return;
-          crearPeer(signal.from, signal.from > user.id);
-          setHasRemoteParticipant(true);
-          break;
-        case 'SIGNAL': {
-          if (signal.to !== user.id) return;
-          if (!signal.payload) {
-            console.warn('[CALL] Received SIGNAL without payload', signal);
-            return;
-          }
-          let peer = peersRef.current[signal.from];
-          if (!peer) {
-            peer = crearPeer(signal.from, signal.from > user.id);
-          }
-          if (peer && signal.payload) {
-            try {
-              // Ensure payload is an object, not a string
-              let payload = signal.payload;
-              if (typeof payload === 'string') {
-                try {
-                  payload = JSON.parse(payload);
-                } catch (e) {
-                  console.error('[CALL] Failed to parse payload as JSON, using as-is', e);
-                }
-              }
-              // Validate that payload is an object with expected SimplePeer signal structure
-              if (payload && typeof payload === 'object') {
-                peer.signal(payload);
-              } else {
-                console.error('[CALL] Invalid payload format for peer.signal()', payload);
-              }
-            } catch (error) {
-              console.error('[CALL] Error signaling peer', error, 'Payload:', signal.payload);
-            }
-          }
-          break;
+      
+      // Manejar diferentes tipos de señales WebRTC
+      if (signal.type === 'offer') {
+        // Recibimos una oferta, crear peer como receptor
+        const otherUserId = signal.from || 0;
+        console.log('[CALL] Received offer from user:', otherUserId);
+        if (!otherUserId || otherUserId === user.id) return;
+        
+        let peer = peersRef.current[otherUserId];
+        if (!peer) {
+          console.log('[CALL] Creating peer as receiver for user:', otherUserId);
+          // Crear peer como receptor (no iniciador) cuando recibimos el offer
+          peer = crearPeerWithOffer(otherUserId, signal.offer);
         }
-        case 'LEAVE':
-          cerrarPeer(signal.from);
-          setHasRemoteParticipant(false);
-          break;
-        case 'END':
-          onEnded?.();
-          break;
-        default:
-          break;
+        if (peer && signal.offer) {
+          try {
+            // Si el peer ya fue creado con el offer, no necesitamos señalarlo de nuevo
+            // Pero si ya existe, señalarlo
+            if (!(peer as any)._offerReceived) {
+              peer.signal(signal.offer);
+              (peer as any)._offerReceived = true;
+              console.log('[CALL] Offer signaled to peer');
+            }
+          } catch (error) {
+            console.error('[CALL] Error signaling offer:', error);
+          }
+        }
+        setHasRemoteParticipant(true);
+      } else if (signal.type === 'answer') {
+        // Recibimos una respuesta
+        const otherUserId = signal.from || 0;
+        console.log('[CALL] Received answer from user:', otherUserId);
+        const peer = peersRef.current[otherUserId];
+        if (peer && signal.answer) {
+          try {
+            peer.signal(signal.answer);
+            console.log('[CALL] Answer signaled to peer');
+          } catch (error) {
+            console.error('[CALL] Error signaling answer:', error);
+          }
+        } else {
+          console.warn('[CALL] Received answer but no peer found for user:', otherUserId);
+        }
+      } else if (signal.type === 'candidate') {
+        // Recibimos un candidato ICE
+        const otherUserId = signal.from || 0;
+        const peer = peersRef.current[otherUserId];
+        if (peer && signal.candidate) {
+          peer.signal(signal.candidate);
+        }
+      } else if (signal.type === 'join') {
+        // Alguien se unió a la sala
+        const otherUserId = signal.userId ? (typeof signal.userId === 'number' ? signal.userId : parseInt(signal.userId.toString())) : 0;
+        if (otherUserId && otherUserId !== user.id) {
+          console.log('[CALL] User joined:', otherUserId, 'My ID:', user.id, 'Has stream:', !!localStreamRef.current, 'Allow broadcast:', allowBroadcast);
+          connectedUsersRef.current.add(otherUserId);
+          setHasRemoteParticipant(true);
+          
+          // Función para intentar crear el peer
+          const tryCreatePeer = () => {
+            if (!allowBroadcast || !localStreamRef.current) {
+              console.log('[CALL] Cannot create peer - allowBroadcast:', allowBroadcast, 'hasStream:', !!localStreamRef.current);
+              return;
+            }
+            
+            // Validar que el stream tenga tracks
+            const tracks = localStreamRef.current.getTracks();
+            if (tracks.length === 0) {
+              console.log('[CALL] Stream has no tracks yet, waiting...');
+              return;
+            }
+            
+            // El usuario con ID mayor crea el peer como iniciador
+            if (user.id > otherUserId) {
+              console.log('[CALL] I am initiator (', user.id, '>', otherUserId, '), creating peer NOW');
+              if (!peersRef.current[otherUserId]) {
+                // Pequeño delay para asegurar que todo esté listo
+                setTimeout(() => {
+                  if (!peersRef.current[otherUserId] && localStreamRef.current && allowBroadcast) {
+                    const peer = crearPeer(otherUserId, true);
+                    if (peer) {
+                      console.log('[CALL] ✓ Peer created as initiator successfully, offer should be sent soon');
+                    } else {
+                      console.error('[CALL] ✗ Failed to create peer as initiator');
+                    }
+                  }
+                }, 300);
+              } else {
+                console.log('[CALL] Peer already exists for user:', otherUserId);
+              }
+            } else {
+              // El usuario con ID menor espera recibir el offer
+              console.log('[CALL] I am receiver (', user.id, '<', otherUserId, '), waiting for offer');
+            }
+          };
+          
+          // Intentar crear peer inmediatamente si tenemos stream
+          if (allowBroadcast && localStreamRef.current) {
+            tryCreatePeer();
+          } else {
+            console.log('[CALL] No local stream yet, will create peer when stream is ready');
+            // El stream se creará más tarde, y el useEffect lo manejará
+          }
+        }
+      } else if (signal.type === 'leave') {
+        const otherUserId = signal.from || signal.userId || 0;
+        console.log('[CALL] User left:', otherUserId);
+        if (otherUserId) {
+          cerrarPeer(otherUserId);
+        }
+      } else if (signal.type === 'end') {
+        onEnded?.();
+      } else if (signal.type === 'signal' && signal.payload) {
+        // Fallback para señales genéricas (SimplePeer)
+        const otherUserId = signal.from || 0;
+        let peer = peersRef.current[otherUserId];
+        if (!peer) {
+          peer = crearPeer(otherUserId, user.id > otherUserId);
+        }
+        if (peer) {
+          try {
+            let payload = signal.payload;
+            if (typeof payload === 'string') {
+              payload = JSON.parse(payload);
+            }
+            if (payload && typeof payload === 'object') {
+              peer.signal(payload);
+            }
+          } catch (error) {
+            console.error('[CALL] Error signaling peer', error);
+          }
+        }
       }
     };
 
-    callSignalingService.connect(session.id, handleSignal, () => {
-      callSignalingService.send(session.id, { type: 'JOIN', from: user.id });
+    callSignalingService.connect(session.id, user.id, handleSignal, () => {
+      console.log('[CALL] WebSocket connected and join sent for session:', session.id, 'user:', user.id);
     });
 
     return () => {
       mounted = false;
-      callSignalingService.send(session.id, { type: 'LEAVE', from: user.id });
+      callSignalingService.send({ type: 'leave', userId: user.id });
       callSignalingService.disconnect();
       Object.values(peersRef.current).forEach((peer) => peer.destroy());
       peersRef.current = {};
@@ -168,6 +263,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     if (!localStream || !allowBroadcast) {
       return;
     }
+    console.log('[CALL] Local stream ready, attaching to peers:', Object.keys(peersRef.current).length, 'Connected users:', Array.from(connectedUsersRef.current));
     Object.values(peersRef.current).forEach((peer) => {
       const existingStreams = (peer as any).streams as MediaStream[] | undefined;
       const alreadyAttached = existingStreams?.some((stream) => stream.id === localStream.id);
@@ -176,6 +272,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       }
       try {
         peer.addStream(localStream);
+        console.log('[CALL] Stream attached to peer');
       } catch {
         localStream.getTracks().forEach((track) => {
           try {
@@ -186,40 +283,147 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
         });
       }
     });
-  }, [localStream, allowBroadcast]);
+    
+    // Si hay participantes conectados pero no hay peers creados, intentar crearlos
+    // Esto puede pasar si el stream se obtuvo después de recibir el join
+    // Solo crear peers como iniciadores (el usuario con ID mayor)
+    if (connectedUsersRef.current.size > 0 && localStreamRef.current && allowBroadcast) {
+      const tracks = localStreamRef.current.getTracks();
+      console.log('[CALL] Stream ready, checking for peers to create. Connected users:', Array.from(connectedUsersRef.current), 'Current peers:', Object.keys(peersRef.current), 'Tracks:', tracks.length);
+      
+      if (tracks.length === 0) {
+        console.log('[CALL] Stream has no tracks yet, will retry...');
+        return;
+      }
+      
+      connectedUsersRef.current.forEach((otherUserId) => {
+        if (otherUserId !== user?.id && !peersRef.current[otherUserId]) {
+          const isInitiator = (user?.id || 0) > otherUserId;
+          if (isInitiator) {
+            // Solo crear como iniciador si tenemos stream
+            console.log('[CALL] ⚡ Creating peer for user:', otherUserId, 'as initiator (stream now ready with', tracks.length, 'tracks)');
+            // Pequeño delay para asegurar que todo esté listo
+            setTimeout(() => {
+              if (localStreamRef.current && !peersRef.current[otherUserId] && allowBroadcast) {
+                const peer = crearPeer(otherUserId, true);
+                if (peer) {
+                  console.log('[CALL] ✓ Peer created as initiator after stream ready, offer should be sent soon');
+                } else {
+                  console.error('[CALL] ✗ Failed to create peer as initiator after stream ready');
+                }
+              } else {
+                console.log('[CALL] Conditions changed, not creating peer. hasStream:', !!localStreamRef.current, 'hasPeer:', !!peersRef.current[otherUserId], 'allowBroadcast:', allowBroadcast);
+              }
+            }, 300);
+          } else {
+            // Si somos el receptor, esperamos el offer
+            console.log('[CALL] Will wait for offer from user:', otherUserId);
+          }
+        }
+      });
+    }
+  }, [localStream, allowBroadcast, hasRemoteParticipant, user?.id]);
 
-  const crearPeer = (otherUserId: number, initiator: boolean) => {
+  const crearPeerWithOffer = (otherUserId: number, offer: any) => {
     if (!session || !user) return null;
     if (peersRef.current[otherUserId]) {
       return peersRef.current[otherUserId];
     }
     
+    if (!allowBroadcast || !localStreamRef.current) {
+      console.warn('[CALL] Cannot create peer as receiver without local stream');
+      return null;
+    }
+    
     const peerConfig: any = {
-      initiator,
+      initiator: false,
       trickle: true,
       config: {
         iceServers: ICE_SERVERS
-      }
+      },
+      stream: localStreamRef.current
     };
     
-    if (allowBroadcast && localStreamRef.current) {
-      peerConfig.stream = localStreamRef.current;
-    }
+    console.log('[CALL] Creating SimplePeer as receiver with offer');
     
-    const peer = new SimplePeer(peerConfig);
+    try {
+      const peer = new SimplePeer(peerConfig);
+      
+      // Señalar el offer inmediatamente
+      if (offer) {
+        try {
+          peer.signal(offer);
+          (peer as any)._offerReceived = true;
+        } catch (error) {
+          console.error('[CALL] Error signaling offer during peer creation:', error);
+        }
+      }
+      
+      setupPeerHandlers(peer, otherUserId);
+      peersRef.current[otherUserId] = peer;
+      return peer;
+    } catch (error) {
+      console.error('[CALL] Error creating peer with offer:', error);
+      return null;
+    }
+  };
 
+  const setupPeerHandlers = (peer: SimplePeer.Instance, otherUserId: number) => {
     peer.on('signal', (data) => {
-      callSignalingService.send(session.id, {
-        type: 'SIGNAL',
-        from: user.id,
-        to: otherUserId,
-        payload: data
-      });
+      console.log('[CALL] 🔔 Signal event fired for user:', otherUserId, 'Signal type:', data.type || (data.candidate ? 'candidate' : 'unknown'));
+      // SimplePeer envía diferentes tipos de señales
+      if (data.type === 'offer') {
+        console.log('[CALL] 📤 Sending offer to user:', otherUserId, 'Offer SDP length:', data.sdp?.length || 0);
+        callSignalingService.send({
+          type: 'offer',
+          from: user!.id,
+          to: otherUserId,
+          room: session!.id.toString(),
+          offer: data
+        });
+      } else if (data.type === 'answer') {
+        console.log('[CALL] 📤 Sending answer to user:', otherUserId, 'Answer SDP length:', data.sdp?.length || 0);
+        callSignalingService.send({
+          type: 'answer',
+          from: user!.id,
+          to: otherUserId,
+          room: session!.id.toString(),
+          answer: data
+        });
+      } else if (data.candidate) {
+        // No loguear cada candidato ICE para no saturar la consola, pero loguear el primero
+        if (!(peer as any)._candidateLogged) {
+          console.log('[CALL] 📤 Sending ICE candidate to user:', otherUserId);
+          (peer as any)._candidateLogged = true;
+        }
+        callSignalingService.send({
+          type: 'candidate',
+          from: user!.id,
+          to: otherUserId,
+          room: session!.id.toString(),
+          candidate: data
+        });
+      } else {
+        // Fallback para otros tipos de señales
+        console.log('[CALL] 📤 Sending generic signal to user:', otherUserId, 'Type:', data.type, 'Data keys:', Object.keys(data));
+        callSignalingService.send({
+          type: 'signal',
+          from: user!.id,
+          to: otherUserId,
+          room: session!.id.toString(),
+          payload: data
+        });
+      }
     });
 
     peer.on('stream', (stream) => {
+      console.log('[CALL] Received remote stream from user:', otherUserId, 'Tracks:', stream.getTracks().length);
       setRemoteStreams((prev) => [...prev.filter((p) => p.userId !== otherUserId), { userId: otherUserId, stream }]);
       setHasRemoteParticipant(true);
+    });
+    
+    peer.on('connect', () => {
+      console.log('[CALL] Peer connected with user:', otherUserId);
     });
 
     peer.on('close', () => {
@@ -230,9 +434,108 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       console.error('Peer error', error);
       cerrarPeer(otherUserId);
     });
+  };
 
-    peersRef.current[otherUserId] = peer;
-    return peer;
+  const crearPeer = (otherUserId: number, initiator: boolean) => {
+    if (!session || !user) {
+      console.error('[CALL] Cannot create peer: missing session or user');
+      return null;
+    }
+    if (peersRef.current[otherUserId]) {
+      console.log('[CALL] Peer already exists for user:', otherUserId);
+      return peersRef.current[otherUserId];
+    }
+    
+    // Solo crear peer si tenemos stream local cuando es necesario
+    if (initiator && (!allowBroadcast || !localStreamRef.current)) {
+      console.warn('[CALL] Cannot create peer as initiator without local stream. allowBroadcast:', allowBroadcast, 'hasStream:', !!localStreamRef.current);
+      return null;
+    }
+    
+    // Validar que el stream tenga tracks antes de crear el peer
+    if (initiator && localStreamRef.current) {
+      const tracks = localStreamRef.current.getTracks();
+      if (tracks.length === 0) {
+        console.warn('[CALL] Cannot create peer as initiator without tracks in stream');
+        return null;
+      }
+      console.log('[CALL] Stream has', tracks.length, 'tracks:', tracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+    }
+    
+    // No crear peer como receptor si no tenemos stream local - esperaremos el offer
+    if (!initiator && (!allowBroadcast || !localStreamRef.current)) {
+      console.log('[CALL] Will create peer as receiver when offer is received');
+      return null;
+    }
+    
+    // Validar que el stream sea un MediaStream válido
+    let validStream: MediaStream | null = null;
+    if (allowBroadcast && localStreamRef.current) {
+      // Verificar que sea una instancia de MediaStream
+      if (localStreamRef.current instanceof MediaStream) {
+        const tracks = localStreamRef.current.getTracks();
+        // Verificar que tenga tracks activos
+        const activeTracks = tracks.filter(t => t.readyState === 'live' && t.enabled);
+        if (activeTracks.length > 0) {
+          validStream = localStreamRef.current;
+          console.log('[CALL] Valid stream found with', activeTracks.length, 'active tracks');
+        } else {
+          console.warn('[CALL] Stream has no active tracks');
+        }
+      } else {
+        console.error('[CALL] localStreamRef.current is not a MediaStream:', typeof localStreamRef.current, localStreamRef.current);
+      }
+    }
+    
+    if (!validStream && initiator) {
+      // Si somos iniciador y no tenemos stream válido, no podemos crear el peer
+      console.error('[CALL] Cannot create peer as initiator without valid stream');
+      return null;
+    }
+    
+    // Crear configuración con stream directamente (como sugiere la documentación)
+    const peerConfig: any = {
+      initiator: Boolean(initiator),
+      trickle: true,
+      config: {
+        iceServers: ICE_SERVERS
+      }
+    };
+    
+    // Pasar el stream directamente en la configuración (SimplePeer lo espera así)
+    if (validStream) {
+      peerConfig.stream = validStream;
+      console.log('[CALL] Stream included in config, stream ID:', validStream.id, 'Tracks:', validStream.getTracks().length);
+    }
+    
+    console.log('[CALL] Creating SimplePeer with config:', { 
+      initiator, 
+      hasStream: !!peerConfig.stream,
+      streamId: peerConfig.stream?.id,
+      userId: otherUserId
+    });
+    
+    try {
+      // Crear el peer con la configuración completa
+      const peer = new SimplePeer(peerConfig);
+      console.log('[CALL] ✓ SimplePeer instance created successfully');
+      
+      // Configurar handlers inmediatamente
+      setupPeerHandlers(peer, otherUserId);
+      
+      peersRef.current[otherUserId] = peer;
+      console.log('[CALL] ✓ SimplePeer fully configured for user:', otherUserId);
+      return peer;
+    } catch (error: any) {
+      console.error('[CALL] ✗ Error creating peer:', error?.message || error);
+      console.error('[CALL] Error stack:', error?.stack);
+      console.error('[CALL] Error details:', {
+        name: error?.name,
+        message: error?.message,
+        constructor: error?.constructor?.name
+      });
+      return null;
+    }
   };
 
   const cerrarPeer = (userId: number) => {
@@ -242,6 +545,10 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       delete peersRef.current[userId];
       setRemoteStreams((prev) => prev.filter((p) => p.userId !== userId));
     }
+    connectedUsersRef.current.delete(userId);
+    if (connectedUsersRef.current.size === 0) {
+      setHasRemoteParticipant(false);
+    }
   };
 
   return {
@@ -249,7 +556,8 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     remoteStreams,
     allowBroadcast,
     hasRemoteParticipant,
-    mediaError
+    mediaError,
+    connectedUsers: Array.from(connectedUsersRef.current) // Export connected users for display
   };
 };
 

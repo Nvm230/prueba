@@ -82,6 +82,7 @@ public class NotificationController {
     }
 
     @PutMapping("/mark-message-notifications-read/{senderName}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> markMessageNotificationsAsRead(@PathVariable String senderName, Authentication auth) {
         var requester = userRepository.findByEmail((String) auth.getPrincipal()).orElseThrow();
         // Decodificar el nombre del usuario (puede venir codificado desde la URL)
