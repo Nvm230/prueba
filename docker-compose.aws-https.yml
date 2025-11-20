@@ -50,11 +50,17 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile.aws-https
       args:
-        # IMPORTANTE: Cambiar por tu IP pública o dominio de AWS
-        # Si usas un dominio, usa: https://tu-dominio.com
-        # Si usas IP, usa: https://TU_IP_PUBLICA
-        # IMPORTANTE: VITE_WS_BASE_URL debe usar https://, NO wss://
-        # SockJS maneja la actualización a WebSocket internamente
+        # IMPORTANTE: Cambiar 3.151.11.170 por tu IP pública de AWS
+        # Ejemplo: Si tu IP es 1.2.3.4, usa: https://1.2.3.4
+        # 
+        # NOTA: Si tienes dominio, también puedes usarlo aquí
+        # Ejemplo con dominio: https://univibe.example.com
+        #
+        # IMPORTANTE: 
+        # - Usa https:// (no http://)
+        # - NO incluyas el puerto (Nginx escucha en 443 automáticamente)
+        # - VITE_WS_BASE_URL debe usar https://, NO wss://
+        # - SockJS maneja la actualización a WebSocket internamente
         - VITE_API_BASE_URL=https://3.151.11.170
         - VITE_WS_BASE_URL=https://3.151.11.170
     container_name: univibe-frontend
@@ -78,4 +84,5 @@ volumes:
 networks:
   univibe-network:
     driver: bridge
+
 

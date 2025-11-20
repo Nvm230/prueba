@@ -6,17 +6,28 @@ Esta guía explica cómo configurar HTTPS en AWS para que las videollamadas func
 
 **WebRTC (usado para videollamadas) requiere HTTPS en producción.** Los navegadores bloquean el acceso a cámara/micrófono y conexiones WebRTC cuando se accede vía HTTP (excepto en localhost).
 
+## 🎯 Si Solo Tienes IP Pública (Sin Dominio)
+
+Si solo tienes una IP pública (como `3.151.11.170`), debes usar **certificados autofirmados**. 
+
+⚠️ **Nota:** Los certificados autofirmados mostrarán una advertencia de seguridad en el navegador, pero las videollamadas funcionarán correctamente una vez que aceptes la excepción.
+
+**Para usar esta opción, ve directamente a la sección "Opción 2: Certificado Autofirmado" más abajo.**
+
 ## 📋 Opciones para Obtener Certificados SSL
 
-### Opción 1: Let's Encrypt (Gratis - Recomendado)
+### Opción 1: Let's Encrypt (Gratis - Requiere Dominio)
 
-Let's Encrypt proporciona certificados SSL gratuitos y válidos.
+Let's Encrypt proporciona certificados SSL gratuitos y válidos, pero **requiere un dominio** (no funciona solo con IP).
 
 #### Requisitos:
 - Un dominio apuntando a tu IP pública de AWS
 - Acceso SSH a tu instancia EC2
 
-#### Pasos:
+#### Si no tienes dominio:
+Si solo tienes IP pública, salta esta opción y ve directamente a **Opción 2: Certificado Autofirmado**.
+
+#### Pasos (solo si tienes dominio):
 
 1. **Instalar Certbot en tu instancia EC2:**
 
@@ -59,14 +70,35 @@ sudo crontab -e
 0 0 * * * certbot renew --quiet && docker compose -f docker-compose.aws-https.yml restart frontend
 ```
 
-### Opción 2: Certificado Autofirmado (Solo para Pruebas)
+### Opción 2: Certificado Autofirmado (Para IP Pública - Recomendado si no tienes dominio)
 
-⚠️ **Advertencia:** Los certificados autofirmados mostrarán una advertencia en el navegador. No son adecuados para producción real, pero funcionan para pruebas.
+⚠️ **Advertencia:** Los certificados autofirmados mostrarán una advertencia en el navegador. Debes aceptar la excepción de seguridad para continuar. Una vez aceptada, las videollamadas funcionarán correctamente.
 
-1. **Generar certificado autofirmado:**
+✅ **Ventajas:**
+- Funciona con IP pública (no requiere dominio)
+- Fácil de generar
+- Las videollamadas funcionan correctamente después de aceptar la excepción
+
+#### Método 1: Usar el Script Automático (Recomendado)
 
 ```bash
-# En tu instancia EC2
+# En tu instancia EC2, desde la raíz del proyecto
+./generate-ssl-certs.sh
+
+# El script te pedirá tu IP pública
+# Ejemplo: 3.151.11.170
+```
+
+El script generará automáticamente:
+- `ssl/cert.pem` - Certificado SSL
+- `ssl/key.pem` - Clave privada
+
+#### Método 2: Generar Manualmente
+
+Si prefieres hacerlo manualmente:
+
+```bash
+# En tu instancia EC2, desde la raíz del proyecto
 mkdir -p ssl
 cd ssl
 
@@ -74,15 +106,16 @@ cd ssl
 openssl genrsa -out key.pem 2048
 
 # Generar certificado (válido por 365 días)
-openssl req -new -x509 -key key.pem -out cert.pem -days 365 -subj "/CN=3.151.11.170"
 # Reemplaza 3.151.11.170 con tu IP pública
+openssl req -new -x509 -key key.pem -out cert.pem -days 365 -subj "/CN=3.151.11.170"
 
 # Ajustar permisos
 chmod 644 cert.pem
 chmod 600 key.pem
+cd ..
 ```
 
-2. **Los certificados estarán en `./ssl/` (relativo a la raíz del proyecto)**
+**Los certificados estarán en `./ssl/` (relativo a la raíz del proyecto)**
 
 ### Opción 3: AWS Certificate Manager (ACM) - Con Load Balancer
 
@@ -102,29 +135,27 @@ Asegúrate de tener los certificados en `./ssl/`:
 - `ssl/cert.pem` - Certificado SSL
 - `ssl/key.pem` - Clave privada
 
-### 2. Configurar IP/Dominio
+### 2. Configurar IP Pública
 
-Edita `docker-compose.aws-https.yml` y actualiza las URLs:
+Edita `docker-compose.aws-https.yml` y actualiza las URLs con tu IP pública:
 
 ```yaml
 args:
-  - VITE_API_BASE_URL=https://TU_IP_O_DOMINIO
-  - VITE_WS_BASE_URL=https://TU_IP_O_DOMINIO
+  - VITE_API_BASE_URL=https://TU_IP_PUBLICA
+  - VITE_WS_BASE_URL=https://TU_IP_PUBLICA
 ```
 
-**Ejemplo con IP:**
+**Ejemplo (reemplaza `3.151.11.170` con tu IP):**
 ```yaml
 args:
   - VITE_API_BASE_URL=https://3.151.11.170
   - VITE_WS_BASE_URL=https://3.151.11.170
 ```
 
-**Ejemplo con dominio:**
-```yaml
-args:
-  - VITE_API_BASE_URL=https://univibe.example.com
-  - VITE_WS_BASE_URL=https://univibe.example.com
-```
+⚠️ **Importante:** 
+- Usa `https://` (no `http://`)
+- No incluyas el puerto en la URL (Nginx escucha en 443 automáticamente)
+- Si tu IP es `3.151.11.170`, usa `https://3.151.11.170` (sin `:443`)
 
 ### 3. Configurar Security Groups en AWS
 
@@ -149,14 +180,21 @@ docker compose -f docker-compose.aws-https.yml ps
 ### 5. Verificar
 
 1. **Acceder vía HTTPS:**
-   - Con IP: `https://3.151.11.170`
-   - Con dominio: `https://tu-dominio.com`
+   - Abre en tu navegador: `https://TU_IP_PUBLICA`
+   - Ejemplo: `https://3.151.11.170`
 
-2. **Verificar que HTTP redirige a HTTPS:**
-   - `http://3.151.11.170` debería redirigir automáticamente a `https://3.151.11.170`
+2. **Aceptar la advertencia de certificado autofirmado:**
+   - El navegador mostrará una advertencia de seguridad (esto es normal con certificados autofirmados)
+   - Haz clic en "Avanzado" o "Advanced"
+   - Luego en "Continuar a [tu IP]" o "Proceed to [your IP]"
+   - Una vez aceptada, verás la aplicación normalmente
 
-3. **Probar videollamadas:**
-   - Las videollamadas deberían funcionar correctamente con HTTPS
+3. **Verificar que HTTP redirige a HTTPS:**
+   - `http://TU_IP_PUBLICA` debería redirigir automáticamente a `https://TU_IP_PUBLICA`
+
+4. **Probar videollamadas:**
+   - Las videollamadas deberían funcionar correctamente después de aceptar el certificado
+   - Asegúrate de que ambos usuarios acepten la excepción del certificado
 
 ## 🔧 Troubleshooting
 
@@ -226,4 +264,5 @@ environment:
 ---
 
 **¿Necesitas ayuda?** Revisa los logs con `docker compose -f docker-compose.aws-https.yml logs -f` y verifica la configuración de certificados.
+
 
