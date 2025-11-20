@@ -16,8 +16,9 @@
 
   // Polyfill para Request - FORZAR siempre, incluso si existe
   // Algunas dependencias pueden intentar desestructurar Request de módulos undefined
+  // Asegurar que Request esté disponible ANTES de que cualquier módulo lo necesite
   if (typeof fetch !== 'undefined') {
-      const RequestPolyfill = class Request {
+    const RequestPolyfill = class Request {
         url: string;
         method: string;
         headers: Headers;

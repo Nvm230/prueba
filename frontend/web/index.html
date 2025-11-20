@@ -62,6 +62,22 @@
           if (typeof module !== 'undefined' && module.exports) {
             module.exports.Request = RequestImpl;
           }
+          
+          // Prevenir errores de desestructuración de módulos undefined
+          // Interceptar accesos a propiedades Request en objetos undefined
+          try {
+            Object.defineProperty(Object.prototype, '__requestFallback', {
+              get: function() {
+                if (this === undefined || this === null) {
+                  return { Request: RequestImpl };
+                }
+                return undefined;
+              },
+              configurable: true
+            });
+          } catch(e) {
+            // Si falla, continuar sin interceptor
+          }
         }
       })();
     </script>
