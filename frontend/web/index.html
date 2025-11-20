@@ -18,8 +18,10 @@
         }
         
         // Polyfill Request - FORZAR siempre, incluso si ya existe
+        // Esto debe ejecutarse ANTES de que cualquier módulo intente importar Request
+        var RequestImpl;
         if (typeof fetch !== 'undefined') {
-          var RequestImpl = function Request(input, init) {
+          RequestImpl = function Request(input, init) {
             if (!(this instanceof RequestImpl)) {
               throw new TypeError('Failed to construct \'Request\': Please use the \'new\' operator');
             }
@@ -38,45 +40,60 @@
           RequestImpl.prototype.clone = function() {
             return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
           };
-          
-          // FORZAR en todos los contextos - SOBRESCRIBIR si existe
-          globalThis.Request = RequestImpl;
-          if (typeof window !== 'undefined') {
-            window.Request = RequestImpl;
-            try { 
-              Object.defineProperty(window, 'Request', { 
-                value: RequestImpl, 
-                writable: true, 
-                configurable: true,
-                enumerable: true
-              }); 
-            } catch(e) {
-              // Si falla, al menos asignar directamente
-              window.Request = RequestImpl;
-            }
-          }
-          if (typeof self !== 'undefined') self.Request = RequestImpl;
-          if (typeof global !== 'undefined') global.Request = RequestImpl;
-          
-          // Asegurar que también esté disponible como exportación de módulo común
-          if (typeof module !== 'undefined' && module.exports) {
-            module.exports.Request = RequestImpl;
-          }
-          
-          // Prevenir errores de desestructuración de módulos undefined
-          // Interceptar accesos a propiedades Request en objetos undefined
+        } else {
+          // Fallback si fetch no está disponible
+          RequestImpl = function Request() {
+            throw new Error('Request is not supported in this environment');
+          };
+        }
+        
+        // FORZAR en todos los contextos - SOBRESCRIBIR si existe
+        // Esto debe hacerse ANTES de que cualquier módulo se cargue
+        var contexts = [];
+        if (typeof globalThis !== 'undefined') contexts.push(globalThis);
+        if (typeof window !== 'undefined') contexts.push(window);
+        if (typeof self !== 'undefined') contexts.push(self);
+        if (typeof global !== 'undefined') contexts.push(global);
+        
+        contexts.forEach(function(ctx) {
+          ctx.Request = RequestImpl;
           try {
-            Object.defineProperty(Object.prototype, '__requestFallback', {
-              get: function() {
-                if (this === undefined || this === null) {
-                  return { Request: RequestImpl };
-                }
-                return undefined;
-              },
-              configurable: true
+            Object.defineProperty(ctx, 'Request', {
+              value: RequestImpl,
+              writable: true,
+              configurable: true,
+              enumerable: true
             });
           } catch(e) {
-            // Si falla, continuar sin interceptor
+            // Si falla, al menos asignar directamente
+            ctx.Request = RequestImpl;
+          }
+        });
+        
+        // Asegurar que también esté disponible como exportación de módulo común
+        if (typeof module !== 'undefined' && module.exports) {
+          module.exports.Request = RequestImpl;
+        }
+        
+        // Interceptar accesos a Request en módulos undefined
+        // Esto previene errores cuando dependencias intentan: const { Request } = undefinedModule
+        if (typeof Proxy !== 'undefined') {
+          try {
+            // Crear un objeto proxy que devuelva Request cuando se acceda a propiedades
+            var requestProxy = new Proxy({}, {
+              get: function(target, prop) {
+                if (prop === 'Request') {
+                  return RequestImpl;
+                }
+                return undefined;
+              }
+            });
+            // Guardar en un lugar accesible para casos extremos
+            if (typeof globalThis !== 'undefined') {
+              globalThis.__requestPolyfill = requestProxy;
+            }
+          } catch(e) {
+            // Si Proxy no está disponible, continuar sin interceptor
           }
         }
       })();
