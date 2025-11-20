@@ -35,3 +35,4 @@ CREATE INDEX IF NOT EXISTS idx_stickers_owner ON stickers(owner_id);
 
 
 
+

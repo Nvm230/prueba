@@ -1,4 +1,6 @@
+// Polyfill DEBE ejecutarse ANTES de cualquier otra importación
 import './polyfills';
+// whatwg-fetch puede intentar usar Request, así que lo importamos después del polyfill
 import 'whatwg-fetch';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
