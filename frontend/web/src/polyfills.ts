@@ -116,5 +116,30 @@
       (self as any).Response = ResponsePolyfill;
     }
   }
+
+  // Polyfill para process.nextTick (necesario para simple-peer)
+  if (typeof process === 'undefined' || !process.nextTick) {
+    const processPolyfill = typeof process !== 'undefined' ? process : { env: {}, versions: {} };
+    
+    if (!processPolyfill.nextTick) {
+      processPolyfill.nextTick = function(callback: () => void) {
+        if (typeof queueMicrotask !== 'undefined') {
+          queueMicrotask(callback);
+        } else if (typeof Promise !== 'undefined') {
+          Promise.resolve().then(callback);
+        } else {
+          setTimeout(callback, 0);
+        }
+      };
+    }
+
+    (globalThis as any).process = processPolyfill;
+    if (typeof window !== 'undefined') {
+      (window as any).process = processPolyfill;
+    }
+    if (typeof global !== 'undefined') {
+      (global as any).process = processPolyfill;
+    }
+  }
 })();
 
