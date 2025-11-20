@@ -1,7 +1,7 @@
 // Polyfill DEBE ejecutarse ANTES de cualquier otra importación
 import './polyfills';
-// whatwg-fetch puede intentar usar Request, así que lo importamos después del polyfill
-import 'whatwg-fetch';
+// whatwg-fetch eliminado - los navegadores modernos ya tienen fetch nativo
+// import 'whatwg-fetch';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
