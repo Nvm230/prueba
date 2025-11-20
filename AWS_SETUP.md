@@ -2,12 +2,19 @@
 
 Este archivo contiene instrucciones para desplegar el proyecto en AWS usando la IP pública.
 
+## ⚠️ IMPORTANTE: HTTPS Requerido para Videollamadas
+
+**Las videollamadas requieren HTTPS en producción.** Si necesitas videollamadas, usa la configuración HTTPS:
+- **Con HTTPS:** `docker-compose.aws-https.yml` (ver `AWS_HTTPS_SETUP.md`)
+- **Sin HTTPS (solo para pruebas):** `docker-compose.aws.yml` (este archivo)
+
 ## Requisitos Previos
 
 1. Instancia EC2 con Ubuntu 22.04+
 2. Docker y Docker Compose instalados
 3. Puertos abiertos en Security Groups:
-   - `5173` (Frontend)
+   - **HTTP:** `5173` (Frontend) - Solo si usas HTTP
+   - **HTTPS:** `80` y `443` (Frontend) - Si usas HTTPS
    - `8080` (Backend, opcional si solo accedes vía frontend)
    - `5432` (PostgreSQL, solo si necesitas acceso externo)
 

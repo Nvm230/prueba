@@ -154,6 +154,33 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
     }
   };
 
+  // Mostrar error de HTTPS si existe
+  if (mediaError && mediaError.includes('HTTPS')) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 md:p-6">
+        <div className="max-w-md w-full bg-slate-800 rounded-xl md:rounded-2xl border border-amber-500/50 p-6 md:p-8 text-center">
+          <div className="mb-4">
+            <div className="mx-auto w-16 h-16 md:w-20 md:h-20 bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
+              <XMarkIcon className="h-8 w-8 md:h-10 md:w-10 text-amber-400" />
+            </div>
+            <h2 className="text-lg md:text-xl font-semibold text-white mb-2">HTTPS Requerido</h2>
+            <p className="text-sm md:text-base text-white/80 mb-4">{mediaError}</p>
+            <p className="text-xs md:text-sm text-white/60 mb-6">
+              Las videollamadas usan WebRTC, que requiere una conexión segura (HTTPS) en producción para proteger tu privacidad.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -169,7 +196,7 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
               </span>
             )}
           </h2>
-          {mediaError && (
+          {mediaError && !mediaError.includes('HTTPS') && (
             <p className="mt-1 text-xs text-amber-200 bg-amber-500/20 inline-flex px-2 py-1 rounded-full">
               {mediaError}
             </p>

@@ -23,6 +23,7 @@ frontend/web/.env
 *.cert
 frontend/web/localhost+*
 localhost+*
+ssl/
 
 # IDE
 .idea/

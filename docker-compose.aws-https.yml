@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:16
+    container_name: univibe-db
+    environment:
+      POSTGRES_DB: univibe
+      POSTGRES_USER: univibe
+      POSTGRES_PASSWORD: QFh9TT6yc7wmiELTcrN
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U univibe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - univibe-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: univibe-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/univibe
+      # Permitir cualquier origen en AWS (cambiar por IP específica o dominio si prefieres)
+      - CORS_ALLOWED_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - univibe-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile.aws-https
+      args:
+        # IMPORTANTE: Cambiar por tu IP pública o dominio de AWS
+        # Si usas un dominio, usa: https://tu-dominio.com
+        # Si usas IP, usa: https://TU_IP_PUBLICA
+        # IMPORTANTE: VITE_WS_BASE_URL debe usar https://, NO wss://
+        # SockJS maneja la actualización a WebSocket internamente
+        - VITE_API_BASE_URL=https://3.151.11.170
+        - VITE_WS_BASE_URL=https://3.151.11.170
+    container_name: univibe-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"   # HTTP (redirige a HTTPS)
+      - "443:443" # HTTPS
+    volumes:
+      # Montar certificados SSL desde el host
+      # Asegúrate de tener los certificados en ./ssl/cert.pem y ./ssl/key.pem
+      - ./ssl:/etc/nginx/certs:ro
+    networks:
+      - univibe-network
+    restart: unless-stopped
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  univibe-network:
+    driver: bridge
+

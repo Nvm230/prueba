@@ -35,6 +35,21 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       return;
     }
 
+    // Validar HTTPS en producción (WebRTC requiere HTTPS excepto en localhost)
+    if (typeof window !== 'undefined') {
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1' ||
+                         window.location.hostname === '[::1]';
+      const isHttps = window.location.protocol === 'https:';
+      
+      if (!isLocalhost && !isHttps) {
+        const errorMsg = 'Las videollamadas requieren HTTPS en producción. Por favor, accede a la aplicación usando HTTPS (https://...) en lugar de HTTP.';
+        console.error('[CALL] WebRTC blocked: HTTPS required in production');
+        setMediaError(errorMsg);
+        return;
+      }
+    }
+
     let mounted = true;
 
     const requestStream = async (): Promise<MediaStream | null> => {
