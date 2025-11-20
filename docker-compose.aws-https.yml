@@ -48,7 +48,7 @@ services:
   frontend:
     build:
       context: ./frontend/web
-      dockerfile: Dockerfile.aws-https
+      dockerfile: Dockerfile.local-https
       args:
         # IMPORTANTE: Cambiar 3.151.11.170 por tu IP pública de AWS
         # Ejemplo: Si tu IP es 1.2.3.4, usa: https://1.2.3.4
@@ -72,6 +72,9 @@ services:
       # Montar certificados SSL desde el host
       # Asegúrate de tener los certificados en ./ssl/cert.pem y ./ssl/key.pem
       - ./ssl:/etc/nginx/certs:ro
+      # Montar código fuente para hot-reload (igual que docker-compose.aws.yml)
+      - ./frontend/web:/app
+      - /app/node_modules
     networks:
       - univibe-network
     restart: unless-stopped
