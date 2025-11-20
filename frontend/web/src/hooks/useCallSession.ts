@@ -15,7 +15,7 @@ interface RemoteStream {
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+  { urls: 'stun:global.stun.twilio.com:3478' }
 ];
 
 export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
