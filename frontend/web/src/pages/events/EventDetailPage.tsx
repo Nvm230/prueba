@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
 import LoadingOverlay from '@/components/data/LoadingOverlay';
 import EmptyState from '@/components/display/EmptyState';
@@ -203,6 +203,22 @@ const EventDetailPage = () => {
   const canManageEvent = user && (user.role === 'ADMIN' || user.role === 'SERVER');
   const canEditEvent = isAdmin || isCreator;
   const canDeleteEvent = isAdmin;
+  const isServer = user?.role === 'SERVER';
+  
+  // Validar si el botón "Iniciar Evento" debe estar habilitado
+  // Para SERVER: solo 5 minutos antes del inicio
+  // Para ADMIN: siempre habilitado
+  const canStartEvent = useMemo(() => {
+    if (!event || !canManageEvent || event.status !== 'PENDING') return false;
+    if (isAdmin) return true; // ADMIN siempre puede iniciar
+    if (isServer && event.startTime) {
+      const now = new Date();
+      const startTime = new Date(event.startTime);
+      const diffMinutes = (startTime.getTime() - now.getTime()) / (1000 * 60);
+      return diffMinutes <= 5 && diffMinutes >= 0; // Solo en los 5 minutos antes del inicio
+    }
+    return false;
+  }, [event, canManageEvent, isAdmin, isServer]);
 
   const refreshActiveCall = useCallback(async () => {
     if (!event) return;
@@ -346,8 +362,9 @@ const EventDetailPage = () => {
                 {event.status === 'PENDING' && (
                   <button
                     onClick={() => startMutation.mutate()}
-                    disabled={startMutation.isLoading}
-                    className="btn-primary text-sm py-2 flex items-center justify-center gap-2"
+                    disabled={startMutation.isLoading || !canStartEvent}
+                    className="btn-primary text-sm py-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!canStartEvent && isServer ? 'El botón estará disponible 5 minutos antes del inicio del evento' : ''}
                   >
                     <PlayIcon className="h-4 w-4" />
                     {startMutation.isLoading ? 'Iniciando...' : 'Iniciar Evento'}
@@ -421,15 +438,21 @@ const EventDetailPage = () => {
             </div>
           ) : (
             <div className="flex items-center gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={handleJoinCall}
-                className="btn-primary inline-flex items-center gap-2"
-                disabled={joiningCall || !activeCall}
-              >
-                <VideoCameraIcon className="h-5 w-5" />
-                {joiningCall ? 'Conectando...' : activeCall ? 'Unirse a la llamada' : 'Esperando al organizador'}
-              </button>
+              {userRegistration ? (
+                <button
+                  type="button"
+                  onClick={handleJoinCall}
+                  className="btn-primary inline-flex items-center gap-2"
+                  disabled={joiningCall || !activeCall}
+                >
+                  <VideoCameraIcon className="h-5 w-5" />
+                  {joiningCall ? 'Conectando...' : activeCall ? 'Unirse a la llamada' : 'Esperando al organizador'}
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                  <p>Debes estar registrado al evento para unirte a la conferencia</p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -234,10 +234,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
           }
 
           return (
-            <div className={`grid ${gridCols} gap-3 md:gap-4 h-full auto-rows-fr`}>
+            <div className={`grid ${gridCols} gap-3 md:gap-4 w-full h-full max-h-full overflow-auto`}>
               {/* Video local */}
               {allowBroadcast && (
-                <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden aspect-video">
+                <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden w-full min-h-0" style={{ aspectRatio: '16/9' }}>
                   <video
                     ref={localVideoRef}
                     autoPlay
@@ -286,13 +286,13 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
               
               {/* Mensaje cuando no hay participantes remotos */}
               {!allowBroadcast && (
-                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex items-center justify-center text-white/70 px-4 md:px-6 text-center aspect-video">
+                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex items-center justify-center text-white/70 px-4 md:px-6 text-center w-full min-h-0" style={{ aspectRatio: '16/9' }}>
                   <p className="text-sm md:text-base">Solo el anfitrión puede compartir audio y video en el modo conferencia.</p>
                 </div>
               )}
               
               {allowBroadcast && remoteStreams.length === 0 && (!hasRemoteParticipant || connectedUsers.length === 0) && (
-                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex flex-col items-center justify-center text-white/60 p-6 md:p-8 aspect-video">
+                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex flex-col items-center justify-center text-white/60 p-6 md:p-8 w-full min-h-0" style={{ aspectRatio: '16/9' }}>
                   <p className="text-base md:text-lg">Esperando participantes...</p>
                 </div>
               )}
@@ -370,7 +370,7 @@ const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream } }>
   }, [remote.stream]);
 
   return (
-    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden aspect-video">
+    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden w-full min-h-0" style={{ aspectRatio: '16/9' }}>
       <video
         ref={videoRef}
         autoPlay
@@ -429,7 +429,7 @@ const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
   }, [userId]);
 
   return (
-    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden border border-white/20 aspect-video">
+    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden border border-white/20 w-full min-h-0" style={{ aspectRatio: '16/9' }}>
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 md:p-8">
         <div className="animate-pulse mb-3 md:mb-4">
           {avatarUrl ? (
@@ -482,7 +482,7 @@ const ConnectedParticipant: React.FC<{ userId: number }> = ({ userId }) => {
   }, [userId]);
 
   return (
-    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden border border-green-500/50 aspect-video">
+    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden border border-green-500/50 w-full min-h-0" style={{ aspectRatio: '16/9' }}>
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 md:p-8">
         <div className="mb-3 md:mb-4">
           {avatarUrl ? (
