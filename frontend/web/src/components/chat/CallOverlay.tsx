@@ -17,7 +17,7 @@ const hasActiveVideo = (stream?: MediaStream | null) =>
 const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const { localStream, remoteStreams, allowBroadcast, hasRemoteParticipant, mediaError, connectedUsers } = useCallSession({
+  const { localStream, remoteStreams, allowBroadcast, hasRemoteParticipant, mediaError, connectedUsers, connectedPeers } = useCallSession({
     session,
     onEnded: () => {
       pushToast({ type: 'info', title: 'Llamada finalizada', description: 'El organizador terminó la llamada.' });
@@ -232,9 +232,27 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
                 <RemoteVideo key={remote.userId} remote={remote} />
               ))}
               
-              {/* Mostrar usuarios conectados que aún no tienen stream */}
-              {connectedUsers
+              {/* En modo conferencia, mostrar usuarios con peer conectado (aunque no tengan stream remoto) */}
+              {session.mode === 'CONFERENCE' && connectedPeers
                 .filter((userId) => !remoteStreams.some((rs) => rs.userId === userId))
+                .map((userId) => {
+                  console.log('[CALL] Showing connected participant in conference mode:', userId);
+                  return <ConnectedParticipant key={userId} userId={userId} />;
+                })}
+              
+              {/* Mostrar usuarios conectados que aún no tienen stream ni peer conectado (solo en modo normal) */}
+              {session.mode === 'NORMAL' && connectedUsers
+                .filter((userId) => {
+                  const hasStream = remoteStreams.some((rs) => rs.userId === userId);
+                  const hasConnectedPeer = connectedPeers?.includes(userId);
+                  
+                  // Solo mostrar como "conectando" si no tiene stream ni peer conectado
+                  if (!hasStream && !hasConnectedPeer) {
+                    console.log('[CALL] User', userId, 'is in connectedUsers but has no remoteStream or connected peer, showing as connecting');
+                    return true;
+                  }
+                  return false;
+                })
                 .map((userId) => (
                   <ConnectingUser key={userId} userId={userId} />
                 ))}
@@ -416,6 +434,57 @@ const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
           <div className="h-1.5 w-1.5 md:h-2 md:w-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
           <div className="h-1.5 w-1.5 md:h-2 md:w-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const ConnectedParticipant: React.FC<{ userId: number }> = ({ userId }) => {
+  const [userName, setUserName] = useState<string>(`Usuario #${userId}`);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    getUserProfile(userId)
+      .then((profile) => {
+        setUserName(profile.name || `Usuario #${userId}`);
+        setAvatarUrl(profile.profilePictureUrl);
+      })
+      .catch(() => {
+        // Si falla, mantener el nombre por defecto
+      });
+  }, [userId]);
+
+  return (
+    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden border border-green-500/50 aspect-video">
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 md:p-8">
+        <div className="mb-3 md:mb-4">
+          {avatarUrl ? (
+            <img 
+              src={avatarUrl} 
+              alt={userName} 
+              className="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full object-cover border-2 md:border-4 border-green-500/50 shadow-lg"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent) {
+                  const fallback = parent.querySelector('.avatar-fallback') as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }
+              }}
+            />
+          ) : null}
+          <div 
+            className={`avatar-fallback h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xl md:text-2xl lg:text-3xl font-semibold border-2 md:border-4 border-green-500/50 shadow-lg ${avatarUrl ? 'hidden' : ''}`}
+          >
+            {userName.slice(0, 2).toUpperCase()}
+          </div>
+        </div>
+        <p className="text-sm md:text-base font-medium text-center px-2 truncate w-full">{userName}</p>
+        <p className="text-xs text-green-400/80 mt-1 md:mt-2 flex items-center gap-1.5">
+          <span className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></span>
+          Conectado
+        </p>
       </div>
     </div>
   );
