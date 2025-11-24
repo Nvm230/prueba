@@ -1,0 +1,153 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+// Simplified Request polyfill plugin - more reliable for production builds
+const requestPolyfillPlugin = () => {
+  return {
+    name: 'request-polyfill',
+    enforce: 'pre' as const,
+    transformIndexHtml(html: string) {
+      // Inject polyfill script at the very beginning of <head>
+      const polyfillScript = `<script>
+(function() {
+  'use strict';
+  var g = typeof globalThis !== 'undefined' ? globalThis : 
+          (typeof window !== 'undefined' ? window : 
+           (typeof self !== 'undefined' ? self : 
+            (typeof global !== 'undefined' ? global : this)));
+  
+  if (typeof globalThis === 'undefined') {
+    g.globalThis = g;
+  }
+  
+  // Only create polyfill if Request doesn't exist or fetch exists but Request doesn't
+  if (typeof fetch !== 'undefined' && typeof Request === 'undefined') {
+    var RequestImpl = function Request(input, init) {
+      if (!(this instanceof RequestImpl)) {
+        throw new TypeError('Failed to construct Request: Please use the new operator');
+      }
+      this.url = typeof input === 'string' ? input : 
+                (input instanceof URL ? input.href : 
+                 (input && typeof input === 'object' && 'url' in input ? input.url : 
+                  String(input)));
+      init = init || {};
+      this.method = (init.method || 'GET').toUpperCase();
+      this.headers = new Headers(init.headers || {});
+      this.body = init.body !== undefined ? init.body : null;
+      this.mode = init.mode || 'cors';
+      this.credentials = init.credentials || 'same-origin';
+      this.cache = init.cache || 'default';
+      this.redirect = init.redirect || 'follow';
+      this.referrer = init.referrer || 'about:client';
+      this.integrity = init.integrity || '';
+    };
+    
+    RequestImpl.prototype.clone = function() {
+      return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+    };
+    
+    // Assign to all global contexts
+    g.Request = RequestImpl;
+    if (typeof window !== 'undefined') window.Request = RequestImpl;
+    if (typeof self !== 'undefined') self.Request = RequestImpl;
+    if (typeof global !== 'undefined') global.Request = RequestImpl;
+  }
+})();
+</script>`;
+      
+      if (html.includes('<head>')) {
+        html = html.replace('<head>', '<head>' + polyfillScript);
+      } else {
+        html = polyfillScript + html;
+      }
+      return html;
+    },
+    
+    // Inject polyfill at the start of each chunk
+    renderChunk(code: string) {
+      const polyfill = `(function(){var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:(typeof self!=="undefined"?self:typeof global!=="undefined"?global:this));if(typeof globalThis==="undefined")g.globalThis=g;if(typeof fetch!=="undefined"&&typeof Request==="undefined"){var R=function(i,n){if(!(this instanceof R))throw new TypeError("Failed to construct Request: Please use the new operator");this.url=typeof i==="string"?i:(i instanceof URL?i.href:(i&&typeof i==="object"&&"url"in i?i.url:String(i)));n=n||{};this.method=(n.method||"GET").toUpperCase();this.headers=new Headers(n.headers||{});this.body=n.body!==undefined?n.body:null;this.mode=n.mode||"cors";this.credentials=n.credentials||"same-origin";this.cache=n.cache||"default";this.redirect=n.redirect||"follow";this.referrer=n.referrer||"about:client";this.integrity=n.integrity||""};R.prototype.clone=function(){return Object.assign(Object.create(Object.getPrototypeOf(this)),this)};g.Request=R;if(typeof window!=="undefined")window.Request=R;if(typeof self!=="undefined")self.Request=R;if(typeof global!=="undefined")global.Request=R}})();`;
+      
+      // Only add polyfill if not already present
+      if (!code.includes('g.Request=R') && !code.includes('globalThis.Request')) {
+        return {
+          code: polyfill + '\n' + code,
+          map: null
+        };
+      }
+      return null;
+    }
+  };
+};
+
+export default defineConfig({
+  plugins: [
+    requestPolyfillPlugin(), 
+    react(),
+    nodePolyfills({
+      include: ['stream', 'readable-stream'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true
+      }
+    })
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  define: {
+    global: 'globalThis',
+    'process.env': {}
+  },
+  server: {
+    port: 5173,
+    host: '0.0.0.0',
+    open: false,
+    proxy: {
+      '/call-signal': {
+        target: 'http://localhost:8080',
+        ws: true,
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  },
+  build: {
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    minify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.message && (
+          warning.message.includes('vitalapi') || 
+          warning.message.includes('vitalApi') ||
+          warning.message.includes('VitalApi')
+        )) {
+          return;
+        }
+        warn(warning);
+      },
+      output: {
+        manualChunks: undefined,
+        format: 'es'
+      }
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      strictRequires: false
+    }
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2020',
+      define: {
+        global: 'globalThis'
+      }
+    },
+    include: ['@stomp/stompjs', 'sockjs-client', 'simple-peer']
+  },
+});

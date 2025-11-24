@@ -1,0 +1,56 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+# Copiar todos los archivos
+COPY . .
+
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
+ARG VITE_WS_BASE_URL
+ENV VITE_WS_BASE_URL=$VITE_WS_BASE_URL
+
+# Verificar que las variables de entorno están configuradas
+RUN echo "Build configuration:" && \
+    echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}" && \
+    echo "VITE_WS_BASE_URL=${VITE_WS_BASE_URL}"
+
+# Instalar supervisor para ejecutar Vite y Nginx
+RUN apk add --no-cache nginx supervisor openssl
+
+# Configurar Nginx como proxy reverso para Vite dev server con HTTPS
+COPY nginx-dev-https.conf /etc/nginx/nginx.conf
+
+# Crear directorio para certificados SSL
+RUN mkdir -p /etc/nginx/certs
+
+# Configurar supervisor para ejecutar Vite y Nginx
+RUN echo '[supervisord]' > /etc/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:vite]' >> /etc/supervisord.conf && \
+    echo 'command=npm run dev -- --host 0.0.0.0' >> /etc/supervisord.conf && \
+    echo 'directory=/app' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:nginx]' >> /etc/supervisord.conf && \
+    echo 'command=nginx -g "daemon off;"' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf
+
+EXPOSE 443
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
