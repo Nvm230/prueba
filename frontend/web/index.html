@@ -6,54 +6,29 @@
     <title>UniVibe</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
-      // Callback para Spotify Web Playback SDK (debe estar ANTES del script de Spotify)
-      window.onSpotifyWebPlaybackSDKReady = function() {
-        console.log('Spotify Web Playback SDK está listo');
-      };
-      
       // POLYFILL CRÍTICO - Debe ejecutarse ANTES de cualquier otro código
       (function() {
         'use strict';
+        
         // Asegurar globalThis
+        var g = typeof globalThis !== 'undefined' ? globalThis : 
+                (typeof window !== 'undefined' ? window : 
+                 (typeof self !== 'undefined' ? self : 
+                  (typeof global !== 'undefined' ? global : this)));
         if (typeof globalThis === 'undefined') {
-          if (typeof window !== 'undefined') window.globalThis = window;
-          else if (typeof global !== 'undefined') global.globalThis = global;
-          else if (typeof self !== 'undefined') self.globalThis = self;
+          g.globalThis = g;
         }
         
-        // Polyfill para process.nextTick (necesario para simple-peer)
-        if (typeof process === 'undefined') {
-          var processPolyfill = { env: {}, versions: {}, nextTick: function(callback) {
-            if (typeof queueMicrotask !== 'undefined') {
-              queueMicrotask(callback);
-            } else if (typeof Promise !== 'undefined') {
-              Promise.resolve().then(callback);
-            } else {
-              setTimeout(callback, 0);
-            }
-          }};
-          if (typeof globalThis !== 'undefined') globalThis.process = processPolyfill;
-          if (typeof window !== 'undefined') window.process = processPolyfill;
-          if (typeof global !== 'undefined') global.process = processPolyfill;
-        } else if (!process.nextTick) {
-          process.nextTick = function(callback) {
-            if (typeof queueMicrotask !== 'undefined') {
-              queueMicrotask(callback);
-            } else if (typeof Promise !== 'undefined') {
-              Promise.resolve().then(callback);
-            } else {
-              setTimeout(callback, 0);
-            }
-          };
-        }
-        
-        // Polyfill para Request
+        // Polyfill para Request - FORZAR siempre que fetch exista
         if (typeof fetch !== 'undefined') {
           var RequestImpl = function Request(input, init) {
             if (!(this instanceof RequestImpl)) {
               throw new TypeError('Failed to construct Request: Please use the new operator');
             }
-            this.url = typeof input === 'string' ? input : (input instanceof URL ? input.href : (input && input.url ? input.url : String(input)));
+            this.url = typeof input === 'string' ? input : 
+                      (input instanceof URL ? input.href : 
+                       (input && typeof input === 'object' && 'url' in input ? input.url : 
+                        String(input)));
             init = init || {};
             this.method = (init.method || 'GET').toUpperCase();
             this.headers = new Headers(init.headers || {});
@@ -68,17 +43,57 @@
           RequestImpl.prototype.clone = function() {
             return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
           };
-          if (typeof globalThis !== 'undefined') globalThis.Request = RequestImpl;
-          if (typeof window !== 'undefined') window.Request = RequestImpl;
+          
+          // FORZAR asignación a TODOS los contextos posibles
+          g.Request = RequestImpl;
+          if (typeof window !== 'undefined') {
+            window.Request = RequestImpl;
+            try {
+              Object.defineProperty(window, 'Request', {
+                value: RequestImpl,
+                writable: true,
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {
+              window.Request = RequestImpl;
+            }
+          }
           if (typeof self !== 'undefined') self.Request = RequestImpl;
           if (typeof global !== 'undefined') global.Request = RequestImpl;
-          if (typeof module !== 'undefined' && module.exports) module.exports.Request = RequestImpl;
+          if (typeof module !== 'undefined' && module.exports) {
+            module.exports.Request = RequestImpl;
+          }
+        }
+        
+        // Polyfill para process.nextTick
+        if (typeof process === 'undefined' || !process.nextTick) {
+          var processPolyfill = typeof process !== 'undefined' ? process : { env: {}, versions: {} };
+          if (!processPolyfill.nextTick) {
+            processPolyfill.nextTick = function(callback) {
+              if (typeof queueMicrotask !== 'undefined') {
+                queueMicrotask(callback);
+              } else if (typeof Promise !== 'undefined') {
+                Promise.resolve().then(callback);
+              } else {
+                setTimeout(callback, 0);
+              }
+            };
+          }
+          g.process = processPolyfill;
+          if (typeof window !== 'undefined') window.process = processPolyfill;
+          if (typeof global !== 'undefined') global.process = processPolyfill;
         }
       })();
+      
+      // Callback para Spotify Web Playback SDK
+      window.onSpotifyWebPlaybackSDKReady = function() {
+        console.log('Spotify Web Playback SDK está listo');
+      };
     </script>
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
   </head>
-  <body class="antialiased bg-surface-light text-slate-900 dark:bg-surface-dark dark:text-slate-100">
+  <body class="antialiased bg-surface-light text-slate-900 dark:bg-slate-100 dark:bg-surface-dark">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
