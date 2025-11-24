@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "UniVibe",
+    "slug": "univibe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#667eea"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.univibe.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "UniVibe necesita acceso a la cámara para escanear códigos QR y tomar fotos.",
+        "NSPhotoLibraryUsageDescription": "UniVibe necesita acceso a tu galería para seleccionar fotos.",
+        "NSLocationWhenInUseUsageDescription": "UniVibe usa tu ubicación para mostrarte eventos cercanos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#667eea"
+      },
+      "package": "com.univibe.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que UniVibe acceda a tu cámara"
+        }
+      ]
+    ]
+  }
+}

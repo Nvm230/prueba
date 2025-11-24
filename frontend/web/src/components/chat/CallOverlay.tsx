@@ -215,10 +215,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
       <div className="flex-1 p-4 md:p-6 overflow-y-auto">
         {/* Calcular el número total de participantes para el grid */}
         {(() => {
-          const totalParticipants = remoteStreams.length + 
-            connectedUsers.filter((userId) => !remoteStreams.some((rs) => rs.userId === userId)).length + 
+          const totalParticipants = remoteStreams.length +
+            connectedUsers.filter((userId) => !remoteStreams.some((rs) => rs.userId === userId)).length +
             (allowBroadcast ? 1 : 0);
-          
+
           // Determinar el número de columnas según el número de participantes
           let gridCols = 'grid-cols-1';
           if (totalParticipants === 1) {
@@ -253,12 +253,12 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
                   </span>
                 </div>
               )}
-              
+
               {/* Videos remotos */}
               {remoteStreams.map((remote) => (
                 <RemoteVideo key={remote.userId} remote={remote} />
               ))}
-              
+
               {/* En modo conferencia, mostrar usuarios con peer conectado (aunque no tengan stream remoto) */}
               {session.mode === 'CONFERENCE' && connectedPeers
                 .filter((userId) => !remoteStreams.some((rs) => rs.userId === userId))
@@ -266,13 +266,13 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
                   console.log('[CALL] Showing connected participant in conference mode:', userId);
                   return <ConnectedParticipant key={userId} userId={userId} />;
                 })}
-              
+
               {/* Mostrar usuarios conectados que aún no tienen stream ni peer conectado (solo en modo normal) */}
               {session.mode === 'NORMAL' && connectedUsers
                 .filter((userId) => {
                   const hasStream = remoteStreams.some((rs) => rs.userId === userId);
                   const hasConnectedPeer = connectedPeers?.includes(userId);
-                  
+
                   // Solo mostrar como "conectando" si no tiene stream ni peer conectado
                   if (!hasStream && !hasConnectedPeer) {
                     console.log('[CALL] User', userId, 'is in connectedUsers but has no remoteStream or connected peer, showing as connecting');
@@ -283,14 +283,14 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
                 .map((userId) => (
                   <ConnectingUser key={userId} userId={userId} />
                 ))}
-              
+
               {/* Mensaje cuando no hay participantes remotos */}
               {!allowBroadcast && (
                 <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex items-center justify-center text-white/70 px-4 md:px-6 text-center w-full min-h-0" style={{ aspectRatio: '16/9' }}>
                   <p className="text-sm md:text-base">Solo el anfitrión puede compartir audio y video en el modo conferencia.</p>
                 </div>
               )}
-              
+
               {allowBroadcast && remoteStreams.length === 0 && (!hasRemoteParticipant || connectedUsers.length === 0) && (
                 <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex flex-col items-center justify-center text-white/60 p-6 md:p-8 w-full min-h-0" style={{ aspectRatio: '16/9' }}>
                   <p className="text-base md:text-lg">Esperando participantes...</p>
@@ -306,9 +306,8 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
           type="button"
           onClick={handleToggleMic}
           disabled={!canControlMic}
-          className={`rounded-full p-4 ${micEnabled ? 'bg-white/20' : 'bg-amber-500/60'} text-white ${
-            !canControlMic ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
-          }`}
+          className={`rounded-full p-4 ${micEnabled ? 'bg-white/20' : 'bg-amber-500/60'} text-white ${!canControlMic ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
+            }`}
           title={!canControlMic && isConferenceMode && !isCreator ? 'En modo conferencia, solo el anfitrión puede usar el micrófono' : ''}
         >
           {micEnabled ? <MicrophoneIcon className="h-6 w-6" /> : <SpeakerXMarkIcon className="h-6 w-6" />}
@@ -317,9 +316,8 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
           type="button"
           onClick={handleToggleCam}
           disabled={!canControlCam}
-          className={`rounded-full p-4 ${camEnabled ? 'bg-white/20' : 'bg-amber-500/60'} text-white ${
-            !canControlCam ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
-          }`}
+          className={`rounded-full p-4 ${camEnabled ? 'bg-white/20' : 'bg-amber-500/60'} text-white ${!canControlCam ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
+            }`}
           title={!canControlCam && isConferenceMode && !isCreator ? 'En modo conferencia, solo el anfitrión puede usar la cámara' : ''}
         >
           {camEnabled ? <VideoCameraIcon className="h-6 w-6" /> : <VideoCameraSlashIcon className="h-6 w-6" />}
@@ -327,11 +325,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
         <button
           type="button"
           onClick={toggleScreenShare}
-          disabled={!canControlCam || !allowBroadcast}
-          className={`rounded-full p-4 ${isScreenSharing ? 'bg-green-600' : 'bg-white/20'} text-white ${
-            !canControlCam || !allowBroadcast ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
-          }`}
-          title={isScreenSharing ? 'Dejar de compartir pantalla' : 'Compartir pantalla'}
+          disabled={!allowBroadcast}
+          className={`rounded-full p-4 ${isScreenSharing ? 'bg-green-600' : 'bg-white/20'} text-white ${!allowBroadcast ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
+            }`}
+          title={!allowBroadcast ? 'Solo el anfitrión puede compartir pantalla en modo conferencia' : (isScreenSharing ? 'Dejar de compartir pantalla' : 'Compartir pantalla')}
         >
           <ComputerDesktopIcon className="h-6 w-6" />
         </button>
@@ -373,10 +370,10 @@ const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream } }>
       const active = hasActiveVideo(remote.stream);
       setHasVideo(active);
     };
-    
+
     checkVideo();
     const interval = setInterval(checkVideo, 500);
-    
+
     return () => clearInterval(interval);
   }, [remote.stream]);
 
@@ -399,10 +396,10 @@ const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream } }>
 const VideoPlaceholder: React.FC<{ label: string; avatarUrl?: string }> = ({ label, avatarUrl }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4">
     {avatarUrl ? (
-      <img 
-        src={avatarUrl} 
-        alt={label} 
-        className="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full object-cover border-2 md:border-4 border-white/30 shadow-lg" 
+      <img
+        src={avatarUrl}
+        alt={label}
+        className="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full object-cover border-2 md:border-4 border-white/30 shadow-lg"
         onError={(e) => {
           // Si la imagen falla, mostrar el placeholder con iniciales
           const target = e.target as HTMLImageElement;
@@ -415,7 +412,7 @@ const VideoPlaceholder: React.FC<{ label: string; avatarUrl?: string }> = ({ lab
         }}
       />
     ) : null}
-    <div 
+    <div
       className={`avatar-fallback h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xl md:text-2xl lg:text-3xl font-semibold border-2 md:border-4 border-white/30 shadow-lg ${avatarUrl ? 'hidden' : ''}`}
     >
       {label.slice(0, 2).toUpperCase()}
@@ -444,9 +441,9 @@ const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 md:p-8">
         <div className="animate-pulse mb-3 md:mb-4">
           {avatarUrl ? (
-            <img 
-              src={avatarUrl} 
-              alt={userName} 
+            <img
+              src={avatarUrl}
+              alt={userName}
               className="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full object-cover border-2 md:border-4 border-white/30 shadow-lg"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -459,7 +456,7 @@ const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
               }}
             />
           ) : null}
-          <div 
+          <div
             className={`avatar-fallback h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xl md:text-2xl lg:text-3xl font-semibold border-2 md:border-4 border-white/30 shadow-lg ${avatarUrl ? 'hidden' : ''}`}
           >
             {userName.slice(0, 2).toUpperCase()}
@@ -497,9 +494,9 @@ const ConnectedParticipant: React.FC<{ userId: number }> = ({ userId }) => {
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 md:p-8">
         <div className="mb-3 md:mb-4">
           {avatarUrl ? (
-            <img 
-              src={avatarUrl} 
-              alt={userName} 
+            <img
+              src={avatarUrl}
+              alt={userName}
               className="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full object-cover border-2 md:border-4 border-green-500/50 shadow-lg"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -512,7 +509,7 @@ const ConnectedParticipant: React.FC<{ userId: number }> = ({ userId }) => {
               }}
             />
           ) : null}
-          <div 
+          <div
             className={`avatar-fallback h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xl md:text-2xl lg:text-3xl font-semibold border-2 md:border-4 border-green-500/50 shadow-lg ${avatarUrl ? 'hidden' : ''}`}
           >
             {userName.slice(0, 2).toUpperCase()}
