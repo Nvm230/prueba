@@ -9,6 +9,8 @@ const requestPolyfillPlugin = () => {
     name: 'request-polyfill',
     enforce: 'pre',
     transformIndexHtml(html: string) {
+      const polyfillScript = `<script>(function(){"use strict";var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:(typeof self!=="undefined"?self:typeof global!=="undefined"?global:this));if(typeof globalThis==="undefined")g.globalThis=g;if(typeof fetch!=="undefined"){var R=function(input,init){if(!(this instanceof R))throw new TypeError("Failed to construct Request: Please use the new operator");this.url=typeof input==="string"?input:(input instanceof URL?input.href:(input&&input.url?input.url:String(input)));init=init||{};this.method=(init.method||"GET").toUpperCase();this.headers=new Headers(init.headers||{});this.body=init.body!==undefined?init.body:null;this.mode=init.mode||"cors";this.credentials=init.credentials||"same-origin";this.cache=init.cache||"default";this.redirect=init.redirect||"follow";this.referrer=init.referrer||"about:client";this.integrity=init.integrity||"";};R.prototype.clone=function(){return Object.assign(Object.create(Object.getPrototypeOf(this)),this);};g.Request=R;if(typeof window!=="undefined")window.Request=R;if(typeof self!=="undefined")self.Request=R;if(typeof global!=="undefined")global.Request=R;if(typeof module!=="undefined"&&module.exports)module.exports.Request=R;}})();</script>`;
+      if(html.includes("<head>"))html=html.replace("<head>","<head>"+polyfillScript);else if(html.includes("<script"))html=html.replace(/(<script[^>]*>)/,polyfillScript+"$1");else html=polyfillScript+html;
       return html;
     },
     buildStart() {
@@ -36,6 +38,17 @@ const requestPolyfillPlugin = () => {
         fixedCode = polyfill + '\n' + fixedCode;
         modified = true;
       }
+      
+      // PATRÓN ULTRA AGRESIVO: captura código minificado sin espacios
+      const ultraPattern = /\{[\s]*Request[\s\w,]*\}[\s]*=[\s]*([^;,\n}]+)/g;
+      fixedCode = fixedCode.replace(ultraPattern, (match, expr) => {
+        modified = true;
+        const trimmedExpr = (expr || '').trim();
+        if (!trimmedExpr || trimmedExpr === 'undefined' || trimmedExpr === 'void 0' || trimmedExpr === 'void(0)' || trimmedExpr === 'void0' || trimmedExpr.includes('undefined') || trimmedExpr === 'null') {
+          return '(typeof globalThis!=="undefined"&&globalThis.Request?globalThis.Request:(typeof window!=="undefined"&&window.Request?window.Request:(typeof self!=="undefined"&&self.Request?self.Request:(function Request(){throw new Error("Request is not available");}))))';
+        }
+        return '(function(){try{var m=' + trimmedExpr + ';if(m&&typeof m!=="undefined"&&typeof m.Request!=="undefined")return m.Request;}catch(e){}if(typeof globalThis!=="undefined"&&globalThis.Request)return globalThis.Request;if(typeof window!=="undefined"&&window.Request)return window.Request;if(typeof self!=="undefined"&&self.Request)return self.Request;return (function Request(){throw new Error("Request is not available");});})()';
+      });
       
       const patterns = [
         /(const|let|var)\s*\{\s*Request\s*\}\s*=\s*([^;,\n}]+)\s*[;,\n}]/g,
@@ -66,6 +79,37 @@ const requestPolyfillPlugin = () => {
         return { code: fixedCode, map: null };
       }
       return null;
+    },
+    generateBundle(options: any, bundle: any) {
+      const polyfill = '(function(){"use strict";if(typeof fetch!=="undefined"){var R=function(input,init){if(!(this instanceof R))throw new TypeError("Failed to construct Request: Please use the new operator");this.url=typeof input==="string"?input:(input instanceof URL?input.href:(input&&input.url?input.url:String(input)));init=init||{};this.method=(init.method||"GET").toUpperCase();this.headers=new Headers(init.headers||{});this.body=init.body!==undefined?init.body:null;this.mode=init.mode||"cors";this.credentials=init.credentials||"same-origin";this.cache=init.cache||"default";this.redirect=init.redirect||"follow";this.referrer=init.referrer||"about:client";this.integrity=init.integrity||"";};R.prototype.clone=function(){return Object.assign(Object.create(Object.getPrototypeOf(this)),this);};var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:(typeof self!=="undefined"?self:typeof global!=="undefined"?global:this));g.Request=R;if(typeof window!=="undefined")window.Request=R;if(typeof self!=="undefined")self.Request=R;if(typeof global!=="undefined")global.Request=R;if(typeof module!=="undefined"&&module.exports)module.exports.Request=R;}})();';
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk' && chunk.code) {
+          let code = chunk.code;
+          if (!code.includes('g.Request=R') && !code.includes('globalThis.Request')) {
+            code = polyfill + '\n' + code;
+          }
+          const bundleUltraPattern = /\{[\s]*Request[\s\w,]*\}[\s]*=[\s]*([^;,\n}]+)/g;
+          code = code.replace(bundleUltraPattern, (match, expr) => {
+            const trimmedExpr = (expr || '').trim();
+            if (!trimmedExpr || trimmedExpr === 'undefined' || trimmedExpr === 'void 0' || trimmedExpr === 'void(0)' || trimmedExpr === 'void0' || trimmedExpr.includes('undefined') || trimmedExpr === 'null') {
+              return '(typeof globalThis!=="undefined"&&globalThis.Request?globalThis.Request:(typeof window!=="undefined"&&window.Request?window.Request:(typeof self!=="undefined"&&self.Request?self.Request:(function Request(){throw new Error("Request is not available");}))))';
+            }
+            return '(function(){try{var m=' + trimmedExpr + ';if(m&&typeof m!=="undefined"&&typeof m.Request!=="undefined")return m.Request;}catch(e){}if(typeof globalThis!=="undefined"&&globalThis.Request)return globalThis.Request;if(typeof window!=="undefined"&&window.Request)return window.Request;if(typeof self!=="undefined"&&self.Request)return self.Request;return (function Request(){throw new Error("Request is not available");});})()';
+          });
+          const bundleVarPatterns = [/(const|let|var)[\s]*\{[\s]*Request[\s]*\}[\s]*=[\s]*([^;,\n}]+)/g, /(const|let|var)\{[\s]*Request[\s]*\}[\s]*=[\s]*([^;,\n}]+)/g];
+          bundleVarPatterns.forEach(pattern => {
+            code = code.replace(pattern, (match, keyword, expr) => {
+              const trimmedExpr = (expr || '').trim();
+              if (!trimmedExpr || trimmedExpr === 'undefined' || trimmedExpr === 'void 0' || trimmedExpr === 'void(0)' || trimmedExpr === 'void0' || trimmedExpr.includes('undefined') || trimmedExpr === 'null') {
+                return '(typeof globalThis!=="undefined"&&globalThis.Request?globalThis.Request:(typeof window!=="undefined"&&window.Request?window.Request:(typeof self!=="undefined"&&self.Request?self.Request:(function Request(){throw new Error("Request is not available");}))))';
+              }
+              return '(function(){try{var m=' + trimmedExpr + ';if(m&&typeof m!=="undefined"&&typeof m.Request!=="undefined")return m.Request;}catch(e){}if(typeof globalThis!=="undefined"&&globalThis.Request)return globalThis.Request;if(typeof window!=="undefined"&&window.Request)return window.Request;if(typeof self!=="undefined"&&self.Request)return self.Request;return (function Request(){throw new Error("Request is not available");});})()';
+            });
+          });
+          chunk.code = code;
+        }
+      }
+    }
     }
   };
 };
