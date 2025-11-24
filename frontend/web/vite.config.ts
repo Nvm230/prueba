@@ -5,7 +5,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // Plugin para inyectar polyfill de Request de manera más agresiva
 const requestPolyfillPlugin = () => {
-// VERSION: 20.2 - Patrones ultra agresivos mejorados (10 patrones en renderChunk y generateBundle)
+// VERSION: 20.3 - Patrones ultra agresivos mejorados (12 patrones con interceptación directa de undefined en renderChunk y generateBundle)
   return {
     name: 'request-polyfill',
     enforce: 'pre',
