@@ -1,0 +1,10 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+// FIX: Solución completa para error Request polyfill
+const requestPolyfillPlugin = () => {
+  return {
+    name: 'request-polyfill',
+    enforce: 'pre',
