@@ -12,9 +12,12 @@ public class RegistrationEmailListener {
 
     @EventListener
     public void onRegistration(RegistrationCreatedEvent event) {
-        String subject = "Registro confirmado: " + event.getEventTitle();
-        String body = "Te registraste al evento '" + event.getEventTitle() + "'" +
-                " que inicia el " + event.getEventStartTime() + ".";
-        mailService.send(event.getUserEmail(), subject, body);
+        String subject = "✅ Registro confirmado: " + event.getEventTitle();
+        String htmlContent = mailService.createEventRegistrationEmail(
+            event.getEventTitle(), 
+            event.getEventStartTime().toString(),
+            "Estudiante" // Podemos mejorar esto con el nombre real del usuario
+        );
+        mailService.sendHtmlEmail(event.getUserEmail(), subject, htmlContent);
     }
 }

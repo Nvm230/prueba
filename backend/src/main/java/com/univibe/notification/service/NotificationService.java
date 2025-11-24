@@ -43,7 +43,14 @@ public class NotificationService {
         // Send via email if enabled
         if (sendEmail) {
             try {
-                mailService.send(recipient.getEmail(), title, message);
+                if (recipient.getEmail() != null && !recipient.getEmail().isBlank()) {
+                    String htmlContent = mailService.createNotificationEmail(
+                        title,
+                        message,
+                        recipient.getName() != null ? recipient.getName() : "Usuario"
+                    );
+                    mailService.sendHtmlEmail(recipient.getEmail(), title, htmlContent);
+                }
             } catch (Exception e) {
                 logger.error("Failed to send email notification to user {}", recipient.getId(), e);
             }
