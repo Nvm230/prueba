@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16
+    container_name: univibe-db
+    environment:
+      POSTGRES_DB: univibe
+      POSTGRES_USER: univibe
+      POSTGRES_PASSWORD: QFh9TT6yc7wmiELTcrN
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U univibe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - univibe-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: univibe-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/univibe
+      # Spotify API Configuration
+      - SPOTIFY_CLIENT_ID=00add696219c4f0a96f9ddcabebcb2a3
+      - SPOTIFY_CLIENT_SECRET=6ebda14bfd66415cbc25677e2a9e3e37
+      # Google OAuth Configuration
+      - GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=YOUR_CLIENT_SECRET
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/auth/register || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - univibe-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile.local-https
+      args:
+        - VITE_API_BASE_URL=https://localhost:5173
+        - VITE_WS_BASE_URL=https://localhost:5173
+        # Google OAuth Client ID para el frontend
+        - VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+    container_name: univibe-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:443"
+    networks:
+      - univibe-network
+    restart: unless-stopped
+    volumes:
+      - ./frontend/web:/app
+      - /app/node_modules
+      - ./frontend/web/localhost+2.pem:/etc/nginx/certs/cert.pem:ro
+      - ./frontend/web/localhost+2-key.pem:/etc/nginx/certs/key.pem:ro
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  univibe-network:
+    driver: bridge
+

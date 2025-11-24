@@ -1,0 +1,156 @@
+
+arrancar el proyecto con docker
+
+docker compose up -d --build app
+
+
+
+Algunas pruebas 
+
+Creacion de usuarios
+
+**Definir variables""
+API=http://localhost:8080 # APi
+EMAIL="correo@uni.test" #correo
+PASS="secret" #contraseña 
+
+TOKEN=$(curl -s -X POST $API/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Ang\",\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | jq -r .token \
+); echo ${TOKEN:0:40}...
+# Si ya existe:
+# TOKEN=$(curl -s -X POST $API/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | jq -r .token)
+
+# Solo Admins pueden crear eventos 
+psql -h localhost -U univibe -d univibe -c "UPDATE users SET role='ADMIN' WHERE email='$EMAIL';"   # pass: univibe
+
+#Creacion de eventos 
+
+
+EVENT_JSON='{
+  "title":"Feria de Proyectos",
+  "category":"academico",
+  "description":"Charlas y demos",
+  "faculty":"Ingeniería",
+  "career":"Software",
+  "status":"PENDING",
+  "startTime":"2025-10-14T10:00:00Z",
+  "endTime":"2025-10-14T12:00:00Z",
+  "tags":["feria","proyectos"]
+}'
+
+curl -i -X POST http://localhost:8080/api/events \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$EVENT_JSON"
+
+
+
+EV_ID=$(curl -s -X POST $API/api/events \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "$EVENT_JSON" | jq -r .id); echo "EVENT_ID=$EV_ID"
+
+curl -s -H "Authorization: Bearer $TOKEN" $API/api/events | jq
+
+
+
+
+
+
+#QR
+
+REG=$(curl -s -X POST $API/api/registrations/$EV_ID -H "Authorization: Bearer $TOKEN"); echo "$REG" | jq
+# (opcional) guardar imagen del QR:
+echo "$REG" | jq -r .qrBase64 | base64 -d > qr.png
+
+# Construir payload para check-in: base64url(userId:eventId)
+USER_ID=$(psql -tA -h localhost -U univibe -d univibe -c "SELECT id FROM users WHERE email='$EMAIL';")
+PAYLOAD=$(python3 - <<PY
+import base64
+print(base64.urlsafe_b64encode(f"$USER_ID:$EV_ID".encode()).decode().rstrip("="))
+PY
+)
+
+curl -s -X POST $API/api/registrations/check-in \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"payload\":\"$PAYLOAD\"}" | jq
+
+#Notificaciones
+
+curl -s -X POST "$API/api/notifications/$USER_ID?title=Aviso&message=Hola" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+curl -s -H "Authorization: Bearer $TOKEN" $API/api/notifications/$USER_ID | jq
+
+
+# Crear segundo usuario
+TOKEN2=$(curl -s -X POST $API/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Bob","email":"bob@uni.test","password":"secret"}' | jq -r .token)
+
+USER2_ID=$(psql -tA -h localhost -U univibe -d univibe -c "SELECT id FROM users WHERE email='bob@uni.test';")
+
+# Crear grupo (ownerId = USER_ID)
+GRP_ID=$(curl -s -X POST "$API/api/groups?name=EstudioDBP&ownerId=$USER_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq -r .id)
+
+# Unir a Bob
+curl -s -X POST "$API/api/groups/$GRP_ID/join?userId=$USER2_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+
+
+
+#Encuestas 
+
+
+SURV=$(curl -s -X POST -G "$API/api/surveys" \
+  -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" \
+  --data-urlencode "eventId=$EV_ID" \
+  --data-urlencode "title=Feedback" \
+  --data-urlencode "questions=¿Te gustó?" \
+  --data-urlencode "questions=¿Qué mejorarías?")
+echo "CREATED"
+
+                                                                                                                                                                                        
+SURV_ID=$(psql -tA -h localhost -U univibe -d univibe -c \
+"select id from surveys where title='Feedback' and event_id=$EV_ID order by id desc limit 1;")
+SURV_ID=$(echo "$SURV_ID" | tr -d '[:space:]')
+
+QID=$(psql -tA -h localhost -U univibe -d univibe -c \
+"select sq.id from survey_questions sq where sq.survey_id=$SURV_ID order by id limit 1;")
+QID=$(echo "$QID" | tr -d '[:space:]')
+
+echo "SURV_ID=$SURV_ID QID=$QID"
+curl -i -X POST "$API/api/surveys/$QID/answer" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "userId=$USER2_ID" \
+  --data-urlencode "answer=Si"
+
+
+
+#Calendar 
+
+
+ACCESS_TOKEN="pega_token_valido"
+curl -s -X POST $API/api/integration/googlecalendar/sync/$EV_ID \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"accessToken\":\"$ACCESS_TOKEN\",\"calendarId\":\"primary\"}" | j
+
+
+
+
+#Clear 
+
+
+Drop y recreate DB dentro del contenedor:
+cd univibe-backend
+docker compose exec -T db psql -U univibe -d postgres -c "DROP DATABASE IF EXISTS univibe WITH (FORCE);"
+docker compose exec -T db psql -U univibe -d postgres -c "CREATE DATABASE univibe OWNER univibe;"
+docker compose exec -T db psql -U univibe -d univibe  -c "ALTER SCHEMA public OWNER TO univibe;"
+Verifica:
+docker compose exec -T db psql -U univibe -d univibe -c "\l"
+docker compose exec -T db psql -U univibe -d univibe -c "\dn+"
+Reinicia la app para que Flyway cree tablas:
+docker compose restart app

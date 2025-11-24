@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: univibe
+      POSTGRES_USER: univibe
+      POSTGRES_PASSWORD: univibe
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/univibe
+      # Spotify API Configuration
+      - SPOTIFY_CLIENT_ID=00add696219c4f0a96f9ddcabebcb2a3
+      - SPOTIFY_CLIENT_SECRET=6ebda14bfd66415cbc25677e2a9e3e37
+      # Google OAuth Configuration
+      - GOOGLE_CLIENT_ID=248778518495-9mg0sl294gejv0bt7ioevrf95cfs2f4.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
+
+  frontend:
+    build:
+      context: ../frontend/web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8080
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  db-data:

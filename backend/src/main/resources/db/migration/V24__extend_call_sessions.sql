@@ -1,0 +1,21 @@
+ALTER TABLE call_sessions
+    ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
+    ADD COLUMN IF NOT EXISTS missed BOOLEAN NOT NULL DEFAULT FALSE;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

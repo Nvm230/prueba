@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: univibe-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/univibe}
+    username: ${SPRING_DATASOURCE_USERNAME:univibe}
+    password: ${SPRING_DATASOURCE_PASSWORD:univibe}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    show-sql: false
+  flyway:
+    enabled: false
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:0}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+    static-path-pattern: /static/**
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,mappings
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: DEBUG
+
+# Spotify API Configuration (opcional)
+# Para habilitar la búsqueda de música en Spotify, configura estas variables de entorno:
+# SPOTIFY_CLIENT_ID=tu_client_id
+# SPOTIFY_CLIENT_SECRET=tu_client_secret
+spotify:
+  client-id: ${SPOTIFY_CLIENT_ID:}
+  client-secret: ${SPOTIFY_CLIENT_SECRET:}
+

@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+frontend/web/node_modules/
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Build outputs
+frontend/web/dist/
+*.log
+*.tmp
+
+# Environment variables
+.env
+backend/.env
+frontend/web/.env
+*.env.local
+*.env.production
+*.env.backup
+
+# SSL Certificates (no subir certificados privados)
+*.pem
+*.key
+*.crt
+*.cert
+frontend/web/localhost+*
+localhost+*
+ssl/
+ssl/*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Docker volumes
+db-data/
+
+# Logs
+*.log
+logs/
+supervisord.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Vite
+frontend/web/.vite/
+
+supervisord.pid
+
+# Backup files
+*.backup

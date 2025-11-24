@@ -1,0 +1,3 @@
+ALTER TABLE events ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) NOT NULL DEFAULT 'PUBLIC';
+UPDATE events SET visibility = 'PUBLIC' WHERE visibility IS NULL;
+

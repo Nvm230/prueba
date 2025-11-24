@@ -1,0 +1,132 @@
+# UniVibe - Curl tests (JWT + JSON)
+
+API=http://localhost:8080
+EMAIL="alice@uni.test"
+PASS="secret"
+
+# (Opcional) segundo usuario para pruebas de grupo/encuestas
+EMAIL2="bob@uni.test"
+PASS2="secret"
+
+# 1) Register / Login (usuario principal)
+TOKEN=$(curl -s -X POST "$API/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Alice\",\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | jq -r .token)
+
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+  TOKEN=$(curl -s -X POST "$API/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | jq -r .token)
+fi
+echo "TOKEN=${TOKEN:0:24}..."
+
+# 1.1) (Opcional) crear usuario 2
+TOKEN2=$(curl -s -X POST "$API/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Bob\",\"email\":\"$EMAIL2\",\"password\":\"$PASS2\"}" | jq -r .token)
+if [ -z "$TOKEN2" ] || [ "$TOKEN2" = "null" ]; then
+  TOKEN2=$(curl -s -X POST "$API/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$EMAIL2\",\"password\":\"$PASS2\"}" | jq -r .token)
+fi
+
+# 2) (Requisito) Tener ADMIN para poder:
+#    - ver /api/users
+#    - crear eventos
+#    - enviar notificaciones
+#    Si YA tienes admin: usa ese mismo TOKEN como ADMIN_TOKEN
+ADMIN_TOKEN="$TOKEN"
+
+# Si AÚN no eres admin, usa un admin real para asignarte ADMIN (requiere ADMIN_TOKEN real):
+#  - USER_ID_SELF=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$API/api/users" | jq -r ".[] | select(.email==\"$EMAIL\") | .id")
+#  - curl -s -X POST "$API/api/users/$USER_ID_SELF/role?role=ADMIN" -H "Authorization: Bearer $ADMIN_TOKEN" | jq
+# Luego vuelve a usar tu TOKEN normal; el rol se evalúa por request.
+
+# 3) Obtener IDs vía API (ADMIN)
+USER_ID=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$API/api/users" \
+  | jq -r ".[] | select(.email==\"$EMAIL\") | .id")
+USER2_ID=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$API/api/users" \
+  | jq -r ".[] | select(.email==\"$EMAIL2\") | .id")
+echo "USER_ID=$USER_ID  USER2_ID=$USER2_ID"
+
+# 4) Listar eventos
+curl -s -H "Authorization: Bearer $TOKEN" "$API/api/events" | jq
+
+# 5) (ADMIN/SERVER) Crear evento
+EVENT_JSON='{
+  "title":"Feria de Proyectos",
+  "category":"academico",
+  "description":"Charlas y demos",
+  "faculty":"Ingenieria",
+  "career":"Software",
+  "startTime":"2025-10-26T10:00:00Z",
+  "endTime":"2025-10-26T12:00:00Z"
+}'
+EV_ID=$(curl -s -X POST "$API/api/events" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$EVENT_JSON" | jq -r .id)
+echo "EVENT_ID=$EV_ID"
+
+# 6) (ADMIN/SERVER) Iniciar evento (habilita chat)
+curl -s -X POST "$API/api/events/$EV_ID/start" -H "Authorization: Bearer $ADMIN_TOKEN" | jq
+
+# 7) Registrarse al evento (devuelve QR en base64 imagen)
+REG=$(curl -s -X POST "$API/api/registrations/$EV_ID" -H "Authorization: Bearer $TOKEN")
+echo "$REG" | jq
+# (opcional) guardar PNG:
+echo "$REG" | jq -r .qrBase64 | base64 -d > qr.png
+
+# 8) Check-in payload (SIN BD): Base64 URL-safe de "userId:eventId" usando tus IDs
+PAYLOAD=$(python3 - <<PY
+import base64, os
+uid=os.environ['USER_ID']; eid=os.environ['EV_ID']
+print(base64.urlsafe_b64encode(f"{uid}:{eid}".encode()).decode().rstrip("="))
+PY
+)
+# export vars para el Python de arriba
+export USER_ID EV_ID
+EV_ID="$EV_ID"
+
+# 9) Check-in
+curl -s -X POST "$API/api/registrations/check-in" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"payload\":\"$PAYLOAD\"}" | jq
+
+# 10) Notificaciones (ADMIN/SERVER)
+curl -s -X POST "$API/api/notifications/$USER_ID?title=Aviso&message=Hola" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq
+curl -s -H "Authorization: Bearer $TOKEN" "$API/api/notifications/$USER_ID" | jq
+
+# 11) Grupos
+# Crear grupo (ownerId = USER_ID)
+GRP_ID=$(curl -s -X POST "$API/api/groups?name=EstudioDBP&ownerId=$USER_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq -r .id)
+echo "GRP_ID=$GRP_ID"
+# Unir a Bob por userId (usa USER2_ID obtenido por API)
+curl -s -X POST "$API/api/groups/$GRP_ID/join?userId=$USER2_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 12) Encuestas
+SURV=$(curl -s -X POST -G "$API/api/surveys" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  --data-urlencode "eventId=$EV_ID" \
+  --data-urlencode "title=Feedback" \
+  --data-urlencode "questions=¿Te gustó?" \
+  --data-urlencode "questions=¿Qué mejorarías?")
+echo "$SURV" | jq
+# Tomar primer questionId del response (sin BD)
+QID=$(echo "$SURV" | jq -r '.questionIds[0]')
+echo "QID=$QID"
+# Responder con usuario 2
+curl -s -X POST "$API/api/surveys/$QID/answer" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "userId=$USER2_ID" \
+  --data-urlencode "answer=Si" | jq
+
+# 13) Integración Google Calendar (token de Google real requerido)
+ACCESS_TOKEN="TU_ACCESS_TOKEN_GOOGLE"
+curl -s -X POST "$API/api/integration/googlecalendar/sync/$EV_ID" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"accessToken\":\"$ACCESS_TOKEN\",\"calendarId\":\"primary\"}" | jq

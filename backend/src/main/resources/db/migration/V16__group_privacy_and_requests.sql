@@ -1,0 +1,11 @@
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS privacy VARCHAR(20) NOT NULL DEFAULT 'PUBLIC';
+
+CREATE TABLE IF NOT EXISTS group_join_requests (
+    id BIGSERIAL PRIMARY KEY,
+    group_id BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_group_join_request UNIQUE (group_id, user_id, status)
+);
+
