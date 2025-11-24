@@ -60,7 +60,6 @@ const navigation: NavigationItem[] = [
     ]
   },
   { name: 'Perfil', to: '/profile', icon: UserCircleIcon },
-  { name: 'Logros', to: '/achievements', icon: TrophyIcon },
   { name: 'Configuración', to: '/settings', icon: Cog6ToothIcon }
 ];
 
