@@ -27,9 +27,6 @@ const requestPolyfillPlugin = () => {
       return null;
     },
     renderChunk(code: string, chunk: any) {
-      let fixedCode = code;
-      let modified = false;
-    renderChunk(code: string, chunk: any) {
       // PRIMERO: Inyectar polyfill AL INICIO del código (antes de cualquier otra cosa)
       const polyfill = '(function(){"use strict";if(typeof fetch!=="undefined"){var R=function(input,init){if(!(this instanceof R))throw new TypeError("Failed to construct Request: Please use the new operator");this.url=typeof input==="string"?input:(input instanceof URL?input.href:(input&&input.url?input.url:String(input)));init=init||{};this.method=(init.method||"GET").toUpperCase();this.headers=new Headers(init.headers||{});this.body=init.body!==undefined?init.body:null;this.mode=init.mode||"cors";this.credentials=init.credentials||"same-origin";this.cache=init.cache||"default";this.redirect=init.redirect||"follow";this.referrer=init.referrer||"about:client";this.integrity=init.integrity||"";};R.prototype.clone=function(){return Object.assign(Object.create(Object.getPrototypeOf(this)),this);};var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:(typeof self!=="undefined"?self:typeof global!=="undefined"?global:this));g.Request=R;if(typeof window!=="undefined")window.Request=R;if(typeof self!=="undefined")self.Request=R;if(typeof global!=="undefined")global.Request=R;if(typeof module!=="undefined"&&module.exports)module.exports.Request=R;}})();';
       
