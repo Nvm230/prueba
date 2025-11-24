@@ -11,6 +11,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import com.univibe.gamification.event.ProfileUpdatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +32,11 @@ import org.springframework.util.StringUtils;
 @RequestMapping("/api/users")
 public class UserController {
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher publisher;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, ApplicationEventPublisher publisher) {
         this.userRepository = userRepository;
+        this.publisher = publisher;
     }
 
     @GetMapping
@@ -60,7 +64,14 @@ public class UserController {
         if (request.profilePictureUrl() != null) {
             user.setProfilePictureUrl(request.profilePictureUrl());
         }
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        // Publish event for achievements
+        boolean hasPhoto = savedUser.getProfilePictureUrl() != null && !savedUser.getProfilePictureUrl().trim().isEmpty();
+        boolean isComplete = hasPhoto && savedUser.getName() != null && savedUser.getEmail() != null;
+        publisher.publishEvent(new ProfileUpdatedEvent(this, savedUser, hasPhoto, isComplete));
+        
+        return savedUser;
     }
 
     @GetMapping("/{userId}")

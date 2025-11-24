@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: univibe
       POSTGRES_PASSWORD: QFh9TT6yc7wmiELTcrN
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:

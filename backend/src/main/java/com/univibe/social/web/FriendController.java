@@ -7,6 +7,8 @@ import com.univibe.social.repo.FriendRequestRepository;
 import com.univibe.social.repo.FriendshipRepository;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
+import com.univibe.gamification.event.FriendAddedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,12 +24,14 @@ public class FriendController {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final RegistrationRepository registrationRepository;
+    private final ApplicationEventPublisher publisher;
 
-    public FriendController(FriendRequestRepository friendRequestRepository, FriendshipRepository friendshipRepository, UserRepository userRepository, RegistrationRepository registrationRepository) {
+    public FriendController(FriendRequestRepository friendRequestRepository, FriendshipRepository friendshipRepository, UserRepository userRepository, RegistrationRepository registrationRepository, ApplicationEventPublisher publisher) {
         this.friendRequestRepository = friendRequestRepository;
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.registrationRepository = registrationRepository;
+        this.publisher = publisher;
     }
 
     @PostMapping("/request")
@@ -111,6 +115,10 @@ public class FriendController {
         friendship.setUser1(userRepository.findById(user1Id).orElseThrow());
         friendship.setUser2(userRepository.findById(user2Id).orElseThrow());
         friendshipRepository.save(friendship);
+
+        // Publish events for achievements (for both users)
+        publisher.publishEvent(new FriendAddedEvent(this, request.getSender(), request.getReceiver()));
+        publisher.publishEvent(new FriendAddedEvent(this, request.getReceiver(), request.getSender()));
 
         return Map.of("id", friendship.getId(), "status", "accepted");
     }

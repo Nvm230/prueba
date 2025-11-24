@@ -107,6 +107,11 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     open: false,
+    allowedHosts: [
+      'univibeapp.ddns.net',
+      '3.151.11.170',
+      'localhost'
+    ],
     proxy: {
       '/call-signal': {
         target: 'http://localhost:8080',

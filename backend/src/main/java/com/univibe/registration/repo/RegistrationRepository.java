@@ -2,6 +2,7 @@ package com.univibe.registration.repo;
 
 import com.univibe.registration.model.Registration;
 import com.univibe.registration.model.RegistrationStatus;
+import com.univibe.user.model.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +27,6 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     
     @Query("SELECT DISTINCT r.user.id FROM Registration r WHERE r.event.id IN :eventIds AND r.user.id != :userId")
     List<Long> findUserIdsByEventIdsExcludingUser(@Param("eventIds") List<Long> eventIds, @Param("userId") Long userId);
+    
+    long countByUser(User user);
 }

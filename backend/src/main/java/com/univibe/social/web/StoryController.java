@@ -6,6 +6,8 @@ import com.univibe.social.repo.FriendshipRepository;
 import com.univibe.social.repo.StoryRepository;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
+import com.univibe.gamification.event.StoryCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -23,11 +25,13 @@ public class StoryController {
     private final StoryRepository storyRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final ApplicationEventPublisher publisher;
 
-    public StoryController(StoryRepository storyRepository, UserRepository userRepository, FriendshipRepository friendshipRepository) {
+    public StoryController(StoryRepository storyRepository, UserRepository userRepository, FriendshipRepository friendshipRepository, ApplicationEventPublisher publisher) {
         this.storyRepository = storyRepository;
         this.userRepository = userRepository;
         this.friendshipRepository = friendshipRepository;
+        this.publisher = publisher;
     }
 
     @PostMapping
@@ -51,6 +55,9 @@ public class StoryController {
         story.setActive(true);
         
         story = storyRepository.save(story);
+        
+        // Publish event for achievements
+        publisher.publishEvent(new StoryCreatedEvent(this, user, story.getId()));
         
         Map<String, Object> responseMap = new java.util.HashMap<>();
         responseMap.put("id", story.getId());

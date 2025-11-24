@@ -4,6 +4,7 @@ import com.univibe.event.model.Event;
 import com.univibe.event.service.EventSecurityService;
 import com.univibe.event.repo.EventRepository;
 import com.univibe.gamification.service.GamificationService;
+import com.univibe.gamification.event.EventRegistrationEvent;
 import com.univibe.registration.model.Registration;
 import com.univibe.registration.model.RegistrationStatus;
 import com.univibe.registration.repo.RegistrationRepository;
@@ -240,6 +241,15 @@ public class RegistrationController {
         
         // Otorgar 1 punto por asistir al evento
         gamificationService.addPoints(userId, 1);
+        
+        // Publish event for achievements
+        // Check if on time (within 15 minutes of start time)
+        com.univibe.event.model.Event event = r.getEvent();
+        boolean isOnTime = true;
+        if (event.getStartTime() != null) {
+            isOnTime = r.getCheckedInAt().isBefore(event.getStartTime().plusSeconds(15 * 60));
+        }
+        eventPublisher.publishEvent(new EventRegistrationEvent(this, user, eventId, isOnTime));
         
         return new CheckInResponse(r.getStatus(), r.getCheckedInAt());
     }

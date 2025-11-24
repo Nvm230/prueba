@@ -21,6 +21,8 @@ public class UserAchievement {
 
     private Instant earnedAt = Instant.now();
 
+    private Integer progress = 0;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public User getUser() { return user; }
@@ -29,4 +31,6 @@ public class UserAchievement {
     public void setAchievement(Achievement achievement) { this.achievement = achievement; }
     public Instant getEarnedAt() { return earnedAt; }
     public void setEarnedAt(Instant earnedAt) { this.earnedAt = earnedAt; }
+    public Integer getProgress() { return progress; }
+    public void setProgress(Integer progress) { this.progress = progress; }
 }

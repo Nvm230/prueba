@@ -29,7 +29,7 @@ const EventCard: React.FC<Props> = ({ event }) => {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-1">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:gradient-text transition-all duration-300 line-clamp-1">
               {event.title}
             </h3>
             {isAdminOrServer && (
@@ -53,8 +53,8 @@ const EventCard: React.FC<Props> = ({ event }) => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span 
-          className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium"
+        <span
+          className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-primary-500/10 to-accent-cyan-500/10 border border-primary-500/20 backdrop-blur-sm"
           style={{ color: primaryColor }}
         >
           {event.category}

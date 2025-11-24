@@ -68,9 +68,9 @@ const adminNavigation: NavigationItem[] = [
   {
     name: 'Administración',
     icon: ShieldCheckIcon,
-    roles: ['ADMIN', 'SERVER'],
+    roles: ['ADMIN'],
     children: [
-      { name: 'Usuarios', to: '/admin/users', icon: ShieldCheckIcon, roles: ['ADMIN', 'SERVER'] },
+      { name: 'Usuarios', to: '/admin/users', icon: ShieldCheckIcon, roles: ['ADMIN'] },
       { name: 'Stickers globales', to: '/admin/stickers', icon: FaceSmileIcon, roles: ['ADMIN'] },
       { name: 'Soporte', to: '/admin/support', icon: ChatBubbleBottomCenterTextIcon, roles: ['ADMIN'] },
       { name: 'Reportes', to: '/admin/reports', icon: FlagIcon, roles: ['ADMIN'] }
@@ -90,16 +90,16 @@ const Sidebar: React.FC<SidebarProps> = ({ variant = 'desktop', isOpen = false, 
   const { user } = useAuth();
   const location = useLocation();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  
-  const isPrivileged = user && (user.role === 'ADMIN' || user.role === 'SERVER');
+
+  const isPrivileged = user && user.role === 'ADMIN';
   const privilegedItems = isPrivileged
     ? adminNavigation.filter((item) => {
-        if (item.children) {
-          item.children = item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : false));
-          return item.children.length > 0;
-        }
-        return !item.roles || (user?.role ? item.roles.includes(user.role) : false);
-      })
+      if (item.children) {
+        item.children = item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : false));
+        return item.children.length > 0;
+      }
+      return !item.roles || (user?.role ? item.roles.includes(user.role) : false);
+    })
     : [];
   const items = isPrivileged ? [...navigation, ...privilegedItems] : navigation;
 
@@ -152,9 +152,8 @@ const Sidebar: React.FC<SidebarProps> = ({ variant = 'desktop', isOpen = false, 
           onClick={onClose}
         />
         <aside
-          className={`absolute inset-y-0 left-0 w-64 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl transform transition-transform duration-200 ${
-            isOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`absolute inset-y-0 left-0 w-64 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl transform transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
           <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 dark:border-slate-800">
             <div>
@@ -170,9 +169,9 @@ const Sidebar: React.FC<SidebarProps> = ({ variant = 'desktop', isOpen = false, 
             </button>
           </div>
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            <SidebarItems 
-              items={items} 
-              unreadCount={unreadCount} 
+            <SidebarItems
+              items={items}
+              unreadCount={unreadCount}
               onNavigate={onClose}
               expandedGroups={expandedGroups}
               onToggleGroup={toggleGroup}
@@ -184,14 +183,14 @@ const Sidebar: React.FC<SidebarProps> = ({ variant = 'desktop', isOpen = false, 
   }
 
   return (
-    <aside className="hidden lg:flex lg:flex-col w-64 border-r border-slate-100 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur">
-      <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-        <span className="text-xl font-semibold text-primary-600">UniVibe</span>
+    <aside className="hidden lg:flex lg:flex-col w-64 border-r border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-b from-white/90 via-purple-50/20 to-white/90 dark:from-slate-900/90 dark:via-slate-900/80 dark:to-slate-900/90 backdrop-blur-xl shadow-lg">
+      <div className="px-6 py-5 border-b border-slate-200/60 dark:border-slate-800/60">
+        <span className="text-xl font-bold gradient-text">UniVibe</span>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Experiencias universitarias reinventadas</p>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-1">
-        <SidebarItems 
-          items={items} 
+        <SidebarItems
+          items={items}
           unreadCount={unreadCount}
           expandedGroups={expandedGroups}
           onToggleGroup={toggleGroup}
@@ -211,14 +210,14 @@ interface SidebarItemsProps {
 
 const SidebarItems: React.FC<SidebarItemsProps> = ({ items, unreadCount, onNavigate, expandedGroups, onToggleGroup }) => {
   const location = useLocation();
-  
+
   return (
     <>
       {items.map((item) => {
         if (item.children && item.children.length > 0) {
           const isExpanded = expandedGroups.has(item.name);
           const hasActiveChild = item.children.some((child) => child.to && location.pathname.startsWith(child.to));
-          
+
           return (
             <div key={item.name}>
               <button
@@ -246,7 +245,7 @@ const SidebarItems: React.FC<SidebarItemsProps> = ({ items, unreadCount, onNavig
                     if (!child.to) return null;
                     const isChat = child.to === '/chat';
                     const showBadge = isChat && unreadCount > 0;
-                    
+
                     return (
                       <NavLink
                         key={child.to}
@@ -280,7 +279,7 @@ const SidebarItems: React.FC<SidebarItemsProps> = ({ items, unreadCount, onNavig
         }
 
         if (!item.to) return null;
-        
+
         const isChat = item.to === '/chat';
         const showBadge = isChat && unreadCount > 0;
 

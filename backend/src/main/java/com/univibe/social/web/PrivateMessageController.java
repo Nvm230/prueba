@@ -17,6 +17,8 @@ import com.univibe.sticker.model.Sticker;
 import com.univibe.sticker.service.StickerService;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
+import com.univibe.gamification.event.MessageSentEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -47,6 +49,7 @@ public class PrivateMessageController {
     private final FileStorageService fileStorageService;
     private final StickerService stickerService;
     private final MessageResponseMapper messageResponseMapper;
+    private final ApplicationEventPublisher publisher;
 
     public PrivateMessageController(PrivateMessageRepository messageRepository,
                                     UserRepository userRepository,
@@ -56,7 +59,8 @@ public class PrivateMessageController {
                                     NotificationRepository notificationRepository,
                                     FileStorageService fileStorageService,
                                     StickerService stickerService,
-                                    MessageResponseMapper messageResponseMapper) {
+                                    MessageResponseMapper messageResponseMapper,
+                                    ApplicationEventPublisher publisher) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.friendshipRepository = friendshipRepository;
@@ -66,6 +70,7 @@ public class PrivateMessageController {
         this.fileStorageService = fileStorageService;
         this.stickerService = stickerService;
         this.messageResponseMapper = messageResponseMapper;
+        this.publisher = publisher;
     }
 
     @MessageMapping("/private.{receiverId}.send")
@@ -139,6 +144,10 @@ public class PrivateMessageController {
             // Enviar por WebSocket a ambos usuarios
             messagingTemplate.convertAndSend("/queue/private." + sender.getId(), objectMapper.writeValueAsString(response));
             messagingTemplate.convertAndSend("/queue/private." + receiverId, objectMapper.writeValueAsString(response));
+
+            // Publish event for achievements
+            publisher.publishEvent(new MessageSentEvent(this, sender, saved.getId()));
+
         } catch (Exception e) {
             e.printStackTrace();
         }

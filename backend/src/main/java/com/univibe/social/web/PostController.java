@@ -8,6 +8,9 @@ import com.univibe.social.repo.CommentRepository;
 import com.univibe.social.repo.PostRepository;
 import com.univibe.user.model.User;
 import com.univibe.user.repo.UserRepository;
+import com.univibe.gamification.event.LikeReceivedEvent;
+import com.univibe.gamification.event.PostCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -27,11 +30,13 @@ public class PostController {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
+    private final ApplicationEventPublisher publisher;
 
-    public PostController(PostRepository postRepository, UserRepository userRepository, CommentRepository commentRepository) {
+    public PostController(PostRepository postRepository, UserRepository userRepository, CommentRepository commentRepository, ApplicationEventPublisher publisher) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
+        this.publisher = publisher;
     }
 
     @PostMapping
@@ -56,6 +61,9 @@ public class PostController {
         post.setUpdatedAt(Instant.now());
         
         post = postRepository.save(post);
+        
+        // Publish event for achievements
+        publisher.publishEvent(new PostCreatedEvent(this, user, post.getId(), post.getMediaUrl()!=null && !post.getMediaUrl().trim().isEmpty(), post.getMusicUrl()!=null && !post.getMusicUrl().trim().isEmpty()));
         
         System.out.println("[POST] Created post with musicUrl: " + post.getMusicUrl());
         
@@ -125,6 +133,8 @@ public class PostController {
             post.getLikedBy().removeIf(u -> u.getId().equals(user.getId()));
         } else {
             post.getLikedBy().add(user);
+            // Publish event for achievements (only on like)
+            publisher.publishEvent(new LikeReceivedEvent(this, post.getUser(), post.getId(), post.getLikedBy().size()));
         }
         
         post.setUpdatedAt(Instant.now());

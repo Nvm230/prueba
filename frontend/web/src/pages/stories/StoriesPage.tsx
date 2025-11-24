@@ -76,7 +76,7 @@ const StoriesPage = () => {
   const getSpotifyEmbedUrl = (url: string): string => {
     const trackMatch = url.match(/track\/([a-zA-Z0-9]+)/);
     const albumMatch = url.match(/album\/([a-zA-Z0-9]+)/);
-    
+
     if (trackMatch) {
       return `https://open.spotify.com/embed/track/${trackMatch[1]}?utm_source=generator`;
     } else if (albumMatch) {
@@ -138,7 +138,7 @@ const StoriesPage = () => {
     const imageSize = hasImage ? 'w-10 h-10' : 'w-16 h-16';
     const textSize = hasImage ? 'text-xs' : 'text-base';
     const iconSize = hasImage ? 'h-5 w-5' : 'h-8 w-8';
-    
+
     return (
       <div className={`${hasImage ? 'mb-2' : 'mb-3'} mx-4 rounded-xl overflow-hidden bg-gradient-to-br from-primary-600 via-primary-500 to-purple-600 ${padding} shadow-xl ring-1 ring-primary-500/20`}>
         <div className="flex items-center gap-3">
@@ -183,10 +183,10 @@ const StoriesPage = () => {
   const handlePlayMusic = (storyId: number, musicUrl: string) => {
     // Si la URL está vacía o no es válida, no intentar reproducir
     if (!musicUrl || musicUrl.trim() === '') {
-      pushToast({ 
-        type: 'warning', 
-        title: 'Música no disponible', 
-        description: 'No hay música disponible para reproducir.' 
+      pushToast({
+        type: 'warning',
+        title: 'Música no disponible',
+        description: 'No hay música disponible para reproducir.'
       });
       return;
     }
@@ -221,13 +221,13 @@ const StoriesPage = () => {
         // Construir URL completa
         return `${window.location.origin}${musicUrl.startsWith('/') ? '' : '/'}${musicUrl}`;
       })();
-      
+
       console.log('Creando audio con URL:', fullUrl);
-      
+
       audio = new Audio(fullUrl);
       audio.loop = true;
       audio.crossOrigin = 'anonymous';
-      
+
       // Manejar errores de reproducción
       audio.addEventListener('error', (e) => {
         console.error('Error al reproducir música:', {
@@ -236,7 +236,7 @@ const StoriesPage = () => {
           originalUrl: musicUrl
         });
       });
-      
+
       audioRefs.current.set(storyId, audio);
     }
 
@@ -342,7 +342,7 @@ const StoriesPage = () => {
                         <StoryMusicPlayer story={story} />
                       </div>
                     )}
-                    
+
                     {story.mediaUrl && story.mediaUrl.trim() !== '' && story.mediaType === 'VIDEO' ? (
                       <div className="mx-4 mb-3 overflow-hidden rounded-2xl">
                         <video
@@ -391,23 +391,7 @@ const StoriesPage = () => {
                     {(!story.mediaUrl || !story.mediaUrl.trim()) && (story.caption || story.musicUrl) && (
                       <div className="px-4 py-6 bg-gradient-to-br from-primary-500 via-primary-600 to-purple-600 rounded-2xl mx-4 mb-3">
                         {story.caption && story.caption.trim() !== '' && (
-                          <p className="text-white text-base font-medium whitespace-pre-wrap break-words mb-3 drop-shadow-sm">{story.caption}</p>
-                        )}
-                        {story.musicUrl && story.musicUrl.trim() !== '' && (
-                          <button
-                            onClick={() => handlePlayMusic(story.id, story.musicUrl!)}
-                            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                            title={playingMusicId === story.id ? 'Pausar música' : 'Reproducir música'}
-                          >
-                            {playingMusicId === story.id ? (
-                              <PauseIcon className="h-5 w-5 text-white" />
-                            ) : (
-                              <PlayIcon className="h-5 w-5 text-white" />
-                            )}
-                            <span className="text-white text-sm font-medium">
-                              {playingMusicId === story.id ? 'Reproduciendo...' : 'Reproducir música'}
-                            </span>
-                          </button>
+                          <p className="text-white text-base font-medium whitespace-pre-wrap break-words drop-shadow-sm">{story.caption}</p>
                         )}
                       </div>
                     )}

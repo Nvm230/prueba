@@ -97,7 +97,7 @@ const PostsPage = () => {
     // Extraer el ID del track o album del enlace
     const trackMatch = url.match(/track\/([a-zA-Z0-9]+)/);
     const albumMatch = url.match(/album\/([a-zA-Z0-9]+)/);
-    
+
     if (trackMatch) {
       return `https://open.spotify.com/embed/track/${trackMatch[1]}?utm_source=generator`;
     } else if (albumMatch) {
@@ -140,7 +140,7 @@ const PostsPage = () => {
       // Tamaño específico para publicaciones: más pequeño cuando hay imagen
       const height = hasImage ? '152' : '232';
       return (
-        <div className={`${hasImage ? 'mb-2' : 'mb-3'} mx-4 rounded-xl overflow-hidden`}>
+        <div className={`${hasImage ? 'mb-3' : 'mb-4'} mx-6 rounded-2xl overflow-hidden shadow-lg`}>
           <iframe
             src={embedUrl}
             width="100%"
@@ -148,7 +148,7 @@ const PostsPage = () => {
             frameBorder="0"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
-            className="rounded-xl w-full block"
+            className="rounded-2xl w-full block"
             style={{ border: 'none', display: 'block', margin: 0, padding: 0 }}
           ></iframe>
         </div>
@@ -161,9 +161,9 @@ const PostsPage = () => {
     const imageSize = hasImage ? 'w-12 h-12' : 'w-16 h-16';
     const textSize = hasImage ? 'text-sm' : 'text-base';
     const iconSize = hasImage ? 'h-6 w-6' : 'h-8 w-8';
-    
+
     return (
-      <div className={`${hasImage ? 'mb-2' : 'mb-3'} mx-4 rounded-xl overflow-hidden bg-gradient-to-br from-primary-600 via-primary-500 to-purple-600 ${padding} shadow-xl ring-1 ring-primary-500/20`}>
+      <div className={`${hasImage ? 'mb-3' : 'mb-4'} mx-6 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-600 via-primary-500 to-purple-600 ${padding} shadow-xl ring-1 ring-primary-500/20`}>
         <div className="flex items-center gap-3">
           {albumImage ? (
             <img src={albumImage} alt={trackInfo?.album.name || 'Album'} className={`${imageSize} rounded-xl object-cover flex-shrink-0 shadow-lg ring-2 ring-white/20`} />
@@ -205,21 +205,21 @@ const PostsPage = () => {
 
   const handlePlayMusic = (postId: number, musicUrl: string) => {
     console.log('[POSTS] handlePlayMusic called with:', { postId, musicUrl });
-    
+
     // Si la URL está vacía o no es válida, no intentar reproducir
     if (!musicUrl || musicUrl.trim() === '') {
       console.log('[POSTS] Music URL is empty');
-      pushToast({ 
-        type: 'warning', 
-        title: 'Música no disponible', 
-        description: 'No hay música disponible para reproducir.' 
+      pushToast({
+        type: 'warning',
+        title: 'Música no disponible',
+        description: 'No hay música disponible para reproducir.'
       });
       return;
     }
 
     // Para enlaces de Spotify, el embed se muestra directamente en el post
     // No necesitamos hacer nada aquí, el embed se renderiza automáticamente
-    
+
     console.log('[POSTS] Attempting to play music with URL:', musicUrl);
 
     // Detener todas las demás músicas
@@ -250,13 +250,13 @@ const PostsPage = () => {
         const baseUrl = apiClient.defaults.baseURL || window.location.origin;
         return `${baseUrl}${musicUrl.startsWith('/') ? '' : '/'}${musicUrl}`;
       })();
-      
+
       console.log('Creando audio con URL:', fullUrl);
-      
+
       audio = new Audio(fullUrl);
       audio.loop = true;
       audio.crossOrigin = 'anonymous';
-      
+
       // Manejar errores de reproducción
       audio.addEventListener('error', (e) => {
         console.error('Error al reproducir música:', {
@@ -264,22 +264,22 @@ const PostsPage = () => {
           url: fullUrl,
           originalUrl: musicUrl
         });
-        pushToast({ 
-          type: 'error', 
-          title: 'Error de reproducción', 
-          description: 'No se pudo reproducir la música. Verifica que la URL sea válida.' 
+        pushToast({
+          type: 'error',
+          title: 'Error de reproducción',
+          description: 'No se pudo reproducir la música. Verifica que la URL sea válida.'
         });
         setPlayingMusicId(null);
       });
-      
+
       audio.addEventListener('canplay', () => {
         console.log('Audio listo para reproducir:', fullUrl);
       });
-      
+
       audio.addEventListener('loadstart', () => {
         console.log('Cargando audio:', fullUrl);
       });
-      
+
       audioRefs.current.set(postId, audio);
     }
 
@@ -300,10 +300,10 @@ const PostsPage = () => {
             url: audio.src,
             originalUrl: musicUrl
           });
-          pushToast({ 
-            type: 'error', 
-            title: 'Error de reproducción', 
-            description: 'No se pudo reproducir la música. Puede ser un problema de CORS o la URL no es válida.' 
+          pushToast({
+            type: 'error',
+            title: 'Error de reproducción',
+            description: 'No se pudo reproducir la música. Puede ser un problema de CORS o la URL no es válida.'
           });
         });
     }
@@ -352,7 +352,7 @@ const PostsPage = () => {
       })), null, 2));
     }
   }, [posts]);
-  
+
   // Debug: Log postsData raw
   useEffect(() => {
     if (postsData) {
@@ -400,141 +400,142 @@ const PostsPage = () => {
           <>
             <div className="space-y-6">
               {posts.map((post) => (
-                <div key={post.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-600">
-                {/* Header del post - usuario y fecha */}
-                <div className="flex items-center gap-3 px-4 py-3 rounded-t-2xl bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800">
-                  <Link to={`/profile/${post.user.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                    <Avatar user={post.user} size="md" />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                        {post.user.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {formatDateTime(post.createdAt)}
-                      </p>
-                    </div>
-                  </Link>
-                  <div className="ml-auto">
-                    {(user && (user.id === post.user.id || user.role === 'ADMIN')) && (
-                      <button
-                        onClick={() => {
-                          if (confirm('¿Eliminar esta publicación?')) {
-                            deleteMutation.mutate(post.id);
-                          }
-                        }}
-                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-error-500"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Música - arriba de la imagen */}
-                {isValidMusicUrl(post.musicUrl) && (
-                  <MusicPlayer post={post} />
-                )}
-
-                {/* Imagen */}
-                {post.mediaUrl && post.mediaUrl.trim() !== '' && (() => {
-                  const imageUrl = (() => {
-                    const url = post.mediaUrl!.trim();
-                    if (url.startsWith('http://') || url.startsWith('https://')) {
-                      return url;
-                    }
-                    if (url.startsWith('/api/files/')) {
-                      return `${window.location.origin}${url}`;
-                    }
-                    if (url.startsWith('/')) {
-                      return `${window.location.origin}${url}`;
-                    }
-                    const baseUrl = apiClient.defaults.baseURL || window.location.origin;
-                    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-                  })();
-                  
-                  return (
-                    <div className="w-full relative mb-3 flex justify-center">
-                      {/* Fondo difuminado de la imagen */}
-                      <div 
-                        className="absolute inset-0 blur-3xl opacity-40 -z-10 rounded-2xl"
-                        style={{
-                          backgroundImage: `url(${imageUrl})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          transform: 'scale(1.2)'
-                        }}
-                      />
-                      
-                      {/* Contenedor interno con bordes redondeados y sombra mejorada */}
-                      <div className="relative overflow-hidden shadow-2xl rounded-2xl mx-4" style={{ maxHeight: '600px', maxWidth: '100%' }}>
-                        <img
-                          src={imageUrl}
-                          alt="Publicación"
-                          className="w-full h-auto object-contain transition-transform duration-300 hover:scale-[1.01]"
-                          style={{ maxHeight: '600px', display: 'block' }}
-                          onError={(e) => {
-                            console.error('[POST] Error loading image:', imageUrl);
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.parentElement) {
-                              target.parentElement.style.display = 'none';
+                <div key={post.id} className="card glow-on-hover group animate-fade-in-up rounded-3xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
+                  {/* Header del post - usuario y fecha */}
+                  <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-slate-50/80 via-purple-50/30 to-cyan-50/20 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-slate-800/80 backdrop-blur-sm rounded-t-3xl">
+                    <Link to={`/profile/${post.user.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                      <Avatar user={post.user} size="md" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-slate-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                          {post.user.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {formatDateTime(post.createdAt)}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="ml-auto">
+                      {(user && (user.id === post.user.id || user.role === 'ADMIN')) && (
+                        <button
+                          onClick={() => {
+                            if (confirm('¿Eliminar esta publicación?')) {
+                              deleteMutation.mutate(post.id);
                             }
                           }}
-                          onLoad={() => {
-                            console.log('[POST] Image loaded successfully:', post.mediaUrl);
+                          className="p-2.5 rounded-xl hover:bg-error-50 dark:hover:bg-error-900/20 text-error-500 hover:text-error-600 transition-all duration-200"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Música - arriba de la imagen */}
+                  {isValidMusicUrl(post.musicUrl) && (
+                    <div className="mb-5 mt-4">
+                      <MusicPlayer post={post} />
+                    </div>
+                  )}
+
+                  {/* Imagen */}
+                  {post.mediaUrl && post.mediaUrl.trim() !== '' && (() => {
+                    const imageUrl = (() => {
+                      const url = post.mediaUrl!.trim();
+                      if (url.startsWith('http://') || url.startsWith('https://')) {
+                        return url;
+                      }
+                      if (url.startsWith('/api/files/')) {
+                        return `${window.location.origin}${url}`;
+                      }
+                      if (url.startsWith('/')) {
+                        return `${window.location.origin}${url}`;
+                      }
+                      const baseUrl = apiClient.defaults.baseURL || window.location.origin;
+                      return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+                    })();
+
+                    return (
+                      <div className="w-full relative mb-3 flex justify-center">
+                        {/* Fondo difuminado de la imagen */}
+                        <div
+                          className="absolute inset-0 blur-3xl opacity-40 -z-10 rounded-2xl"
+                          style={{
+                            backgroundImage: `url(${imageUrl})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            transform: 'scale(1.2)'
                           }}
                         />
+
+                        {/* Contenedor interno con bordes redondeados y sombra mejorada */}
+                        <div className="relative overflow-hidden shadow-2xl rounded-3xl mx-6" style={{ maxHeight: '600px', maxWidth: '100%' }}>
+                          <img
+                            src={imageUrl}
+                            alt="Publicación"
+                            className="w-full h-auto object-contain transition-transform duration-300 hover:scale-[1.01]"
+                            style={{ maxHeight: '600px', display: 'block' }}
+                            onError={(e) => {
+                              console.error('[POST] Error loading image:', imageUrl);
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              if (target.parentElement) {
+                                target.parentElement.style.display = 'none';
+                              }
+                            }}
+                            onLoad={() => {
+                              console.log('[POST] Image loaded successfully:', post.mediaUrl);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Contenido del post - abajo de la imagen */}
+                  {post.content && post.content.trim() !== '' && (
+                    <div className="px-6 pb-4 mt-1">
+                      <div className="glass-card p-5 rounded-2xl shadow-inner border-0 ring-1 ring-primary-500/10 mb-3">
+                        <p className="text-slate-900 dark:text-white whitespace-pre-wrap break-words leading-relaxed text-base">{post.content}</p>
                       </div>
                     </div>
-                  );
-                })()}
+                  )}
 
-                {/* Contenido del post - abajo de la imagen */}
-                {post.content && post.content.trim() !== '' && (
-                  <div className="px-4 pb-3">
-                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/80 dark:to-slate-700/80 rounded-xl p-4 shadow-inner border border-slate-200/50 dark:border-slate-600/50">
-                      <p className="text-slate-900 dark:text-white whitespace-pre-wrap break-words leading-relaxed">{post.content}</p>
+                  {/* Acciones - dentro del card pero después del contenido */}
+                  <div className="px-6 pb-5 rounded-b-3xl bg-gradient-to-r from-slate-50/50 to-transparent dark:from-slate-800/50">
+                    <div className="flex items-center gap-4 pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <button
+                        onClick={() => likeMutation.mutate(post.id)}
+                        disabled={likeMutation.isLoading}
+                        className={`flex items-center gap-2.5 px-5 py-2.5 rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg ${post.isLiked
+                          ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-rose-500/40'
+                          : 'bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                      >
+                        <HeartIcon className={`h-5 w-5 ${post.isLiked ? 'fill-current animate-bounce-subtle' : ''}`} />
+                        <span className="text-sm font-semibold">{post.likesCount}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newExpanded = new Set(expandedComments);
+                          if (newExpanded.has(post.id)) {
+                            newExpanded.delete(post.id);
+                          } else {
+                            newExpanded.add(post.id);
+                          }
+                          setExpandedComments(newExpanded);
+                        }}
+                        className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-600 dark:text-slate-400 hover:bg-primary-500/10 hover:text-primary-600 dark:hover:text-primary-400 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                      >
+                        <ChatBubbleLeftIcon className="h-5 w-5" />
+                        <span className="text-sm font-semibold">Comentar</span>
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {/* Acciones - dentro del card pero después del contenido */}
-                <div className="px-4 pb-4 rounded-b-2xl bg-gradient-to-r from-slate-50/50 to-transparent dark:from-slate-800/50">
-                  <div className="flex items-center gap-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <button
-                      onClick={() => likeMutation.mutate(post.id)}
-                      disabled={likeMutation.isLoading}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                        post.isLiked
-                          ? 'bg-gradient-to-r from-rose-100 to-pink-100 dark:from-rose-900/40 dark:to-pink-900/40 text-rose-600 dark:text-rose-400 shadow-sm'
-                          : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:shadow-sm'
-                      }`}
-                    >
-                      <HeartIcon className={`h-6 w-6 ${post.isLiked ? 'fill-current' : ''}`} />
-                      <span className="text-sm font-medium">{post.likesCount}</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const newExpanded = new Set(expandedComments);
-                        if (newExpanded.has(post.id)) {
-                          newExpanded.delete(post.id);
-                        } else {
-                          newExpanded.add(post.id);
-                        }
-                        setExpandedComments(newExpanded);
-                      }}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:shadow-sm transition-all duration-200"
-                    >
-                      <ChatBubbleLeftIcon className="h-6 w-6" />
-                      <span className="text-sm font-medium">Comentar</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Comentarios */}
-                {expandedComments.has(post.id) && (
-                  <PostComments postId={post.id} />
-                )}
+                  {/* Comentarios */}
+                  {expandedComments.has(post.id) && (
+                    <PostComments postId={post.id} />
+                  )}
                 </div>
               ))}
             </div>

@@ -11,6 +11,7 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
     List<Story> findByUserAndIsActiveTrueAndExpiresAtAfter(User user, Instant now);
     List<Story> findByIsActiveTrueAndExpiresAtAfter(Instant now);
     List<Story> findByUser(User user);
+    long countByUser(User user);
 }
 
 

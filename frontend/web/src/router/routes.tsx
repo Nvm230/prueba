@@ -19,7 +19,7 @@ const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
 const AdminStickersPage = lazy(() => import('@/pages/admin/AdminStickersPage'));
 const AdminSupportPage = lazy(() => import('@/pages/admin/AdminSupportPage'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/AdminReportsPage'));
-const AchievementsPage = lazy(() => import('@/pages/achievements/AchievementsPage'));
+// const AchievementsPage = lazy(() => import('@/pages/achievements/AchievementsPage'));
 const StoriesPage = lazy(() => import('@/pages/stories/StoriesPage'));
 const PostsPage = lazy(() => import('@/pages/posts/PostsPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -55,7 +55,7 @@ export const privateRoutes = [
   { path: '/admin/stickers', element: <AdminStickersPage /> },
   { path: '/admin/support', element: <AdminSupportPage /> },
   { path: '/admin/reports', element: <AdminReportsPage /> },
-  { path: '/achievements', element: <AchievementsPage /> },
+  // { path: '/achievements', element: <AchievementsPage /> },
   { path: '/stories', element: <StoriesPage /> },
   { path: '/posts', element: <PostsPage /> }
 ];

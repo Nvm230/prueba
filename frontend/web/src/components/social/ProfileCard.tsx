@@ -19,7 +19,7 @@ const ProfileCard = () => {
   }
 
   return (
-    <div className="card bg-gradient-to-br from-primary-50/50 to-primary-100/30 dark:from-primary-900/20 dark:to-primary-800/10 border-primary-200 dark:border-primary-800">
+    <div className="card glow-on-hover bg-gradient-to-br from-primary-50/80 via-purple-50/40 to-cyan-50/30 dark:from-primary-900/30 dark:via-slate-900/50 dark:to-cyan-900/20 border-primary-200/60 dark:border-primary-800/60 animate-fade-in-up">
       <div className="flex flex-col items-center text-center space-y-4 p-6">
         <Avatar
           user={{
@@ -29,7 +29,7 @@ const ProfileCard = () => {
           size="xl"
         />
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{profile.name}</h2>
+          <h2 className="text-2xl font-bold gradient-text">{profile.name}</h2>
           <div className="flex items-center justify-center gap-2 mt-2 text-sm text-slate-600 dark:text-slate-400">
             <EnvelopeIcon className="h-4 w-4" />
             <span>{profile.email}</span>
@@ -46,7 +46,7 @@ const ProfileCard = () => {
               <img
                 src={profile.qrCodeBase64.startsWith('data:') ? profile.qrCodeBase64 : `data:image/png;base64,${profile.qrCodeBase64}`}
                 alt="QR Code"
-                className="w-48 h-48 border-4 border-white dark:border-slate-800 rounded-lg shadow-lg"
+                className="w-48 h-48 border-4 border-white/80 dark:border-slate-800/80 rounded-2xl shadow-2xl shadow-primary-500/20 ring-2 ring-primary-500/10 hover:scale-105 transition-transform duration-300"
                 onError={(e) => {
                   console.error('Error loading QR code:', profile.qrCodeBase64?.substring(0, 50));
                   e.currentTarget.style.display = 'none';

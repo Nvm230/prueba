@@ -18,6 +18,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import com.univibe.gamification.event.GroupCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -35,6 +37,7 @@ public class GroupController {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupJoinRequestRepository joinRequestRepository;
+    private final ApplicationEventPublisher publisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -42,11 +45,13 @@ public class GroupController {
     public GroupController(
             GroupRepository groupRepository,
             UserRepository userRepository,
-            GroupJoinRequestRepository joinRequestRepository
+            GroupJoinRequestRepository joinRequestRepository,
+            ApplicationEventPublisher publisher
     ) {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
         this.joinRequestRepository = joinRequestRepository;
+        this.publisher = publisher;
     }
 
     @GetMapping
@@ -94,7 +99,12 @@ public class GroupController {
         g.setOwner(owner);
         g.setPrivacy(privacy);
         g.getMembers().add(owner);
-        return new GroupResponseDTO(groupRepository.save(g));
+        Group savedGroup = groupRepository.save(g);
+        
+        // Publish event for achievements
+        publisher.publishEvent(new GroupCreatedEvent(this, owner, savedGroup.getId()));
+        
+        return new GroupResponseDTO(savedGroup);
     }
 
     @PostMapping("/{groupId}/join")
