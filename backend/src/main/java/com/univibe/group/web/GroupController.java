@@ -86,7 +86,6 @@ public class GroupController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','SERVER')")
     public GroupResponseDTO create(
             Authentication auth,
             @RequestParam @NotBlank String name,

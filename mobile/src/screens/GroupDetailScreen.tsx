@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { groupService, Group, GroupMember } from '../services/groups';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../components/ui/Button';
 
 export const GroupDetailScreen = ({ route, navigation }: any) => {
     const { groupId } = route.params;

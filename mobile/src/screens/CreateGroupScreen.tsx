@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { groupService, CreateGroupRequest } from '../services/groups';
-import { useTheme } from '../../contexts/ThemeContext';
-import { Button } from '../../components/ui/Button';
+import { useTheme } from '../contexts/ThemeContext';
+import { Button } from '../components/ui/Button';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const CreateGroupScreen = ({ navigation }: any) => {
