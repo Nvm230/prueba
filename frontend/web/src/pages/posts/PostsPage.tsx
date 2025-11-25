@@ -429,8 +429,10 @@ const PostsPage = () => {
                       return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
                     })();
 
+                    const hasMusic = isValidMusicUrl(post.musicUrl);
+
                     return (
-                      <div className="w-full relative mb-3 flex justify-center">
+                      <div className={`w-full relative mb-3 flex justify-center ${!hasMusic ? 'mt-4' : ''}`}>
                         {/* Fondo difuminado de la imagen */}
                         <div
                           className="absolute inset-0 blur-3xl opacity-40 -z-10 rounded-2xl"
