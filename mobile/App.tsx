@@ -12,6 +12,7 @@ import { EventsScreen } from './src/screens/tabs/EventsScreen';
 import { SocialScreen } from './src/screens/tabs/SocialScreen';
 import { ChatScreen } from './src/screens/tabs/ChatScreen';
 import { ProfileScreen } from './src/screens/tabs/ProfileScreen';
+import { GroupsScreen } from './src/screens/tabs/GroupsScreen';
 import { QRScannerScreen } from './src/screens/QRScannerScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { ChatDetailScreen } from './src/screens/ChatDetailScreen';
@@ -62,11 +63,19 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
+        name="Groups"
+        component={GroupsScreen}
+        options={{
+          title: 'Grupos',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>👥</Text>,
+        }}
+      />
+      <Tab.Screen
         name="Social"
         component={SocialScreen}
         options={{
           title: 'Social',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>👥</Text>,
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📱</Text>,
         }}
       />
       <Tab.Screen
