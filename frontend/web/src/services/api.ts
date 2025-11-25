@@ -1,7 +1,6 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 // Create axios instance
 const api = axios.create({
@@ -12,62 +11,52 @@ const api = axios.create({
     timeout: 10000,
 });
 
-// Token management with SecureStore
+// Token management
 const TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 export const tokenManager = {
-    async getToken(): Promise<string | null> {
-        try {
-            return await SecureStore.getItemAsync(TOKEN_KEY);
-        } catch (error) {
-            console.error('Error getting token:', error);
-            return null;
-        }
+    getToken(): string | null {
+        return localStorage.getItem(TOKEN_KEY);
     },
 
-    async setToken(token: string): Promise<void> {
-        try {
-            await SecureStore.setItemAsync(TOKEN_KEY, token);
-        } catch (error) {
-            console.error('Error setting token:', error);
-        }
+    setToken(token: string): void {
+        localStorage.setItem(TOKEN_KEY, token);
     },
 
-    async getRefreshToken(): Promise<string | null> {
-        try {
-            return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-        } catch (error) {
-            console.error('Error getting refresh token:', error);
-            return null;
-        }
+    getRefreshToken(): string | null {
+        return localStorage.getItem(REFRESH_TOKEN_KEY);
     },
 
-    async setRefreshToken(token: string): Promise<void> {
-        try {
-            await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
-        } catch (error) {
-            console.error('Error setting refresh token:', error);
-        }
+    setRefreshToken(token: string): void {
+        localStorage.setItem(REFRESH_TOKEN_KEY, token);
     },
 
-    async clearTokens(): Promise<void> {
-        try {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-        } catch (error) {
-            console.error('Error clearing tokens:', error);
-        }
+    clearTokens(): void {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
     },
 };
 
-// Request interceptor - Add auth token
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+const retryableStatuses = [408, 429, 500, 502, 503, 504];
+
+// Request interceptor - Add auth token and AbortController
 api.interceptors.request.use(
-    async (config: InternalAxiosRequestConfig) => {
-        const token = await tokenManager.getToken();
+    (config: InternalAxiosRequestConfig) => {
+        const token = tokenManager.getToken();
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Add AbortController for request cancellation
+        if (!config.signal) {
+            const controller = new AbortController();
+            config.signal = controller.signal;
+        }
+
         return config;
     },
     (error: AxiosError) => {
@@ -75,7 +64,7 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor - Handle errors and refresh token
+// Response interceptor - Handle errors, refresh token, and retry logic
 let isRefreshing = false;
 let failedQueue: Array<{
     resolve: (value?: unknown) => void;
@@ -93,15 +82,23 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
     failedQueue = [];
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as AxiosRequestConfig & {
+            _retry?: boolean;
+            _retryCount?: number;
+        };
+
+        if (!originalRequest) {
+            return Promise.reject(error);
+        }
 
         // Handle 401 Unauthorized - Try to refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
-                // Queue the request
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
@@ -117,27 +114,26 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const refreshToken = await tokenManager.getRefreshToken();
+            const refreshToken = tokenManager.getRefreshToken();
 
             if (!refreshToken) {
-                // No refresh token, logout
-                await tokenManager.clearTokens();
+                tokenManager.clearTokens();
+                window.location.href = '/login';
                 processQueue(error, null);
                 isRefreshing = false;
                 return Promise.reject(error);
             }
 
             try {
-                // Call refresh token endpoint
                 const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
                     refreshToken,
                 });
 
                 const { token: newToken, refreshToken: newRefreshToken } = response.data;
 
-                await tokenManager.setToken(newToken);
+                tokenManager.setToken(newToken);
                 if (newRefreshToken) {
-                    await tokenManager.setRefreshToken(newRefreshToken);
+                    tokenManager.setRefreshToken(newRefreshToken);
                 }
 
                 if (originalRequest.headers) {
@@ -149,17 +145,35 @@ api.interceptors.response.use(
 
                 return api(originalRequest);
             } catch (refreshError) {
-                // Refresh failed, logout
-                await tokenManager.clearTokens();
+                tokenManager.clearTokens();
+                window.location.href = '/login';
                 processQueue(error, null);
                 isRefreshing = false;
                 return Promise.reject(refreshError);
             }
         }
 
+        // Retry logic for retryable errors
+        if (
+            error.response &&
+            retryableStatuses.includes(error.response.status) &&
+            (!originalRequest._retryCount || originalRequest._retryCount < MAX_RETRIES)
+        ) {
+            originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+
+            // Exponential backoff
+            const delay = RETRY_DELAY * Math.pow(2, originalRequest._retryCount - 1);
+            await sleep(delay);
+
+            console.log(
+                `Retrying request (${originalRequest._retryCount}/${MAX_RETRIES})...`
+            );
+
+            return api(originalRequest);
+        }
+
         // Handle other errors
         if (error.response) {
-            // Server responded with error status
             const status = error.response.status;
             const message = (error.response.data as any)?.message || error.message;
 
@@ -183,10 +197,8 @@ api.interceptors.response.use(
                     console.error('Error:', message);
             }
         } else if (error.request) {
-            // Request made but no response
             console.error('Network Error: No response from server');
         } else {
-            // Error setting up request
             console.error('Request Error:', error.message);
         }
 

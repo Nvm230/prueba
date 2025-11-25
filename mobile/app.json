@@ -43,7 +43,8 @@
         {
           "cameraPermission": "Permitir que UniVibe acceda a tu cámara"
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

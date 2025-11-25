@@ -28,7 +28,7 @@ const StoriesPage = () => {
   const { data: stories = [], isLoading } = useQuery({
     queryKey: ['stories'],
     queryFn: ({ signal }) => getAllStories(signal),
-    refetchInterval: 30000 // Refresh every 30 seconds
+    refetchOnWindowFocus: false,
   });
 
   const createMutation = useMutation({

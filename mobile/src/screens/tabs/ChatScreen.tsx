@@ -9,46 +9,58 @@ import {
     Platform,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { chatService, Conversation } from '../../services/chat';
+import { chatService, Chat } from '../../services/chat';
+import { useTheme } from '../../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const ChatScreen = ({ navigation }: any) => {
-    const { data: conversations, isLoading } = useQuery({
-        queryKey: ['conversations'],
-        queryFn: chatService.getConversations,
-    });
-
+    const { theme } = useTheme();
     const isIOS = Platform.OS === 'ios';
 
-    const renderConversation = ({ item }: { item: Conversation }) => (
+    const { data: chats, isLoading } = useQuery({
+        queryKey: ['chats'],
+        queryFn: chatService.getChats,
+    });
+
+    const styles = createStyles(theme, isIOS);
+
+    const renderChat = ({ item }: { item: Chat }) => (
         <TouchableOpacity
-            style={[styles.conversationItem, isIOS && styles.conversationItemIOS]}
-            onPress={() => navigation.navigate('ChatDetail', { userId: item.userId, userName: item.userName })}
+            style={styles.chatCard}
+            onPress={() => navigation.navigate('ChatDetail', { chatId: item.id })}
         >
-            <Image
-                source={{ uri: item.userPhoto || 'https://via.placeholder.com/50' }}
-                style={styles.avatar}
-            />
-            <View style={styles.conversationContent}>
-                <View style={styles.conversationHeader}>
-                    <Text style={styles.userName}>{item.userName}</Text>
-                    <Text style={styles.time}>
-                        {new Date(item.lastMessageTime).toLocaleTimeString('es-ES', {
-                            hour: '2-digit',
-                            minute: '2-digit',
+            <View style={styles.avatarContainer}>
+                {item.otherUser.profilePictureUrl ? (
+                    <Image
+                        source={{ uri: item.otherUser.profilePictureUrl }}
+                        style={styles.avatar}
+                    />
+                ) : (
+                    <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>
+                            {item.otherUser.name.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
+                )}
+                {item.unreadCount > 0 && (
+                    <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                    </View>
+                )}
+            </View>
+            <View style={styles.chatInfo}>
+                <View style={styles.chatHeader}>
+                    <Text style={styles.chatName}>{item.otherUser.name}</Text>
+                    <Text style={styles.chatTime}>
+                        {new Date(item.lastMessage?.createdAt || item.createdAt).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
                         })}
                     </Text>
                 </View>
-                <View style={styles.messagePreview}>
-                    <Text style={styles.lastMessage} numberOfLines={1}>
-                        {item.lastMessage}
-                    </Text>
-                    {item.unreadCount > 0 && (
-                        <View style={[styles.badge, isIOS && styles.badgeIOS]}>
-                            <Text style={styles.badgeText}>{item.unreadCount}</Text>
-                        </View>
-                    )}
-                </View>
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                    {item.lastMessage?.content || 'Sin mensajes'}
+                </Text>
             </View>
         </TouchableOpacity>
     );
@@ -63,31 +75,32 @@ export const ChatScreen = ({ navigation }: any) => {
 
     return (
         <View style={styles.container}>
-            {isIOS && (
+            {/* Header */}
+            {isIOS ? (
                 <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
                     style={styles.header}
                 >
-                    <Text style={styles.headerTitle}>💬 Mensajes</Text>
+                    <Text style={styles.headerTitle}>Mensajes</Text>
+                    <Text style={styles.headerSubtitle}>Conversaciones</Text>
                 </LinearGradient>
-            )}
-
-            {!isIOS && (
+            ) : (
                 <View style={styles.headerAndroid}>
-                    <Text style={styles.headerTitleAndroid}>💬 Mensajes</Text>
+                    <Text style={styles.headerTitleAndroid}>Mensajes</Text>
+                    <Text style={styles.headerSubtitleAndroid}>Conversaciones</Text>
                 </View>
             )}
 
             <FlatList
-                data={conversations}
-                renderItem={renderConversation}
-                keyExtractor={(item) => item.userId.toString()}
+                data={chats || []}
+                renderItem={renderChat}
+                keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
                 ListEmptyComponent={
-                    <View style={styles.empty}>
-                        <Text style={styles.emptyText}>No tienes conversaciones</Text>
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>💬</Text>
+                        <Text style={styles.emptyText}>No hay conversaciones</Text>
+                        <Text style={styles.emptySubtext}>Inicia una conversación</Text>
                     </View>
                 }
             />
@@ -95,58 +108,63 @@ export const ChatScreen = ({ navigation }: any) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: theme.colors.background,
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: theme.colors.background,
     },
     header: {
-        paddingTop: 60,
-        paddingBottom: 20,
+        paddingTop: 80,
+        paddingBottom: 24,
         paddingHorizontal: 20,
     },
     headerTitle: {
+        fontSize: 36,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        marginBottom: 4,
+    },
+    headerSubtitle: {
+        fontSize: 16,
+        color: '#ffffffcc',
+    },
+    headerAndroid: {
+        paddingTop: 80,
+        paddingBottom: 24,
+        paddingHorizontal: 20,
+        backgroundColor: theme.colors.primary,
+    },
+    headerTitleAndroid: {
         fontSize: 32,
         fontWeight: 'bold',
         color: '#ffffff',
+        marginBottom: 4,
     },
-    headerAndroid: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: '#8b5cf6',
-    },
-    headerTitleAndroid: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#ffffff',
+    headerSubtitleAndroid: {
+        fontSize: 14,
+        color: '#ffffffdd',
     },
     listContent: {
         padding: 16,
     },
-    conversationItem: {
+    chatCard: {
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 12,
+        backgroundColor: theme.colors.card,
+        borderRadius: 16,
+        padding: 16,
         marginBottom: 12,
-        elevation: 2,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 4,
-    },
-    conversationItemIOS: {
-        borderRadius: 16,
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-    },
-    avatar: {
         width: 50,
         height: 50,
         borderRadius: 25,

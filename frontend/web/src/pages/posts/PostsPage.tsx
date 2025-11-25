@@ -33,7 +33,9 @@ const PostsPage = () => {
 
   const { data: postsData, isLoading } = useQuery({
     queryKey: ['posts', { page, size }],
-    queryFn: ({ signal }) => getPosts({ page, size }, signal)
+    queryFn: ({ signal }) => getPosts({ page, size }, signal),
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
   });
 
   const createMutation = useMutation({

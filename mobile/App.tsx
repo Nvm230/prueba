@@ -16,6 +16,12 @@ import { GroupsScreen } from './src/screens/tabs/GroupsScreen';
 import { QRScannerScreen } from './src/screens/QRScannerScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { ChatDetailScreen } from './src/screens/ChatDetailScreen';
+import { GroupDetailScreen } from './src/screens/GroupDetailScreen';
+import { CreateGroupScreen } from './src/screens/CreateGroupScreen';
+import { CreateStoryScreen } from './src/screens/CreateStoryScreen';
+import { CreatePostScreen } from './src/screens/CreatePostScreen';
+import { StoryViewerScreen } from './src/screens/StoryViewerScreen';
+import { ToastProvider } from './src/utils/toast';
 import { View, Text, ActivityIndicator, Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -145,6 +151,46 @@ function Navigation() {
                 title: 'Chat',
               }}
             />
+            <Stack.Screen
+              name="GroupDetail"
+              component={GroupDetailScreen}
+              options={{
+                headerShown: !!true,
+                title: 'Detalle del Grupo',
+              }}
+            />
+            <Stack.Screen
+              name="CreateGroup"
+              component={CreateGroupScreen}
+              options={{
+                headerShown: !!true,
+                title: 'Crear Grupo',
+              }}
+            />
+            <Stack.Screen
+              name="CreateStory"
+              component={CreateStoryScreen}
+              options={{
+                headerShown: !!true,
+                title: 'Crear Story',
+              }}
+            />
+            <Stack.Screen
+              name="CreatePost"
+              component={CreatePostScreen}
+              options={{
+                headerShown: !!true,
+                title: 'Nueva Publicación',
+              }}
+            />
+            <Stack.Screen
+              name="StoryViewer"
+              component={StoryViewerScreen}
+              options={{
+                headerShown: false,
+                presentation: 'fullScreenModal',
+              }}
+            />
           </>
         )}
       </Stack.Navigator>
@@ -160,6 +206,7 @@ export default function App() {
           <Navigation />
         </AuthProvider>
       </ThemeProvider>
+      <ToastProvider />
     </QueryClientProvider>
   );
 }

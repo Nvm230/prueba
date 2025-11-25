@@ -8,6 +8,7 @@ import LoadingOverlay from '@/components/data/LoadingOverlay';
 import NotificationCenter from '@/components/feedback/NotificationCenter';
 import { useToast } from '@/contexts/ToastContext';
 import ErrorBoundary from '@/components/feedback/ErrorBoundary';
+import { Toaster } from 'react-hot-toast';
 
 const App = () => {
   const { toasts } = useToast();
@@ -17,10 +18,10 @@ const App = () => {
       <Suspense fallback={<LoadingOverlay message="Cargando interfaz" />}>
         <Routes>
           {publicRoutes.map((route) => (
-            <Route 
-              key={route.path} 
-              path={route.path} 
-              element={<PublicRoute>{route.element}</PublicRoute>} 
+            <Route
+              key={route.path}
+              path={route.path}
+              element={<PublicRoute>{route.element}</PublicRoute>}
             />
           ))}
           {privateRoutes.map((route) => (
@@ -38,6 +39,30 @@ const App = () => {
         </Routes>
       </Suspense>
       <NotificationCenter toasts={toasts} />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </ErrorBoundary>
   );
 };

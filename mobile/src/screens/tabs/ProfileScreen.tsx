@@ -108,8 +108,8 @@ export const ProfileScreen = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>🏆</Text>
-                    <Text style={styles.menuText}>Logros</Text>
+                    <Text style={styles.menuIcon}>👥</Text>
+                    <Text style={styles.menuText}>Mis Grupos</Text>
                     <Text style={styles.menuArrow}>›</Text>
                 </TouchableOpacity>
 

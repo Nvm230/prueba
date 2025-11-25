@@ -1,47 +1,69 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
-    FlatList,
     StyleSheet,
+    FlatList,
     TouchableOpacity,
     Image,
     Platform,
+    RefreshControl,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { socialService, Post } from '../../services/social';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { postService, Post } from '../../services/posts';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MusicPlayer } from '../../components/features/MusicPlayer';
 
-export const SocialScreen = () => {
-    const { data: posts, isLoading } = useQuery({
-        queryKey: ['posts'],
-        queryFn: socialService.getPosts,
+export const SocialScreen = ({ navigation }: any) => {
+    const { theme } = useTheme();
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const isIOS = Platform.OS === 'ios';
+    const [page, setPage] = useState(0);
+
+    const { data: postsData, isLoading, refetch } = useQuery({
+        queryKey: ['posts', page],
+        queryFn: ({ signal }) => postService.getAll({ page, size: 10 }, signal),
     });
 
-    const isIOS = Platform.OS === 'ios';
+    const likeMutation = useMutation({
+        mutationFn: (postId: number) => postService.toggleLike(postId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['posts'] });
+        },
+    });
+
+    const styles = createStyles(theme, isIOS);
 
     const renderPost = ({ item }: { item: Post }) => (
-        <View style={[styles.postCard, isIOS && styles.postCardIOS]}>
+        <View style={styles.postCard}>
             {/* User Header */}
             <View style={styles.postHeader}>
-                <Image
-                    source={{ uri: item.user.photoUrl || 'https://via.placeholder.com/40' }}
-                    style={styles.avatar}
-                />
+                {item.user.profilePictureUrl ? (
+                    <Image source={{ uri: item.user.profilePictureUrl }} style={styles.avatar} />
+                ) : (
+                    <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>{item.user.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                )}
                 <View style={styles.userInfo}>
                     <Text style={styles.userName}>{item.user.name}</Text>
                     <Text style={styles.postTime}>
                         {new Date(item.createdAt).toLocaleDateString('es-ES', {
                             day: 'numeric',
                             month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
                         })}
                     </Text>
                 </View>
             </View>
 
             {/* Content */}
-            <Text style={styles.postContent}>{item.content}</Text>
+            {item.content && (
+                <Text style={styles.postContent}>{item.content}</Text>
+            )}
 
             {/* Media */}
             {item.mediaUrl && (
@@ -50,109 +72,144 @@ export const SocialScreen = () => {
 
             {/* Music */}
             {item.musicUrl && (
-                <MusicPlayer musicUrl={item.musicUrl} />
+                <View style={styles.musicCard}>
+                    <Text style={styles.musicIcon}>🎵</Text>
+                    <Text style={styles.musicText}>Música adjunta</Text>
+                </View>
             )}
 
             {/* Actions */}
             <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionButton}>
-                    <Text style={styles.actionIcon}>❤️</Text>
-                    <Text style={styles.actionText}>{item.likedBy?.length || 0}</Text>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => likeMutation.mutate(item.id)}
+                >
+                    <Text style={styles.actionIcon}>{item.isLiked ? '❤️' : '🤍'}</Text>
+                    <Text style={styles.actionText}>{item.likesCount}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
                     <Text style={styles.actionIcon}>💬</Text>
-                    <Text style={styles.actionText}>{item.comments?.length || 0}</Text>
+                    <Text style={styles.actionText}>{item.commentsCount}</Text>
                 </TouchableOpacity>
             </View>
         </View>
     );
 
-    if (isLoading) {
-        return (
-            <View style={styles.centered}>
-                <Text>Cargando publicaciones...</Text>
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
-            {isIOS && (
+            {/* Header */}
+            {isIOS ? (
                 <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
                     style={styles.header}
                 >
-                    <Text style={styles.headerTitle}>👥 Social</Text>
+                    <Text style={styles.headerTitle}>Social</Text>
+                    <Text style={styles.headerSubtitle}>Publicaciones</Text>
                 </LinearGradient>
-            )}
-
-            {!isIOS && (
+            ) : (
                 <View style={styles.headerAndroid}>
-                    <Text style={styles.headerTitleAndroid}>👥 Social</Text>
+                    <Text style={styles.headerTitleAndroid}>Social</Text>
+                    <Text style={styles.headerSubtitleAndroid}>Publicaciones</Text>
                 </View>
             )}
 
+            {/* Create Post Button */}
+            <View style={styles.createContainer}>
+                <TouchableOpacity
+                    style={styles.createButton}
+                    onPress={() => navigation.navigate('CreatePost')}
+                >
+                    <Text style={styles.createButtonText}>+ Nueva Publicación</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Posts List */}
             <FlatList
-                data={posts}
+                data={postsData?.content || []}
                 renderItem={renderPost}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
+                refreshControl={
+                    <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>📱</Text>
+                        <Text style={styles.emptyText}>No hay publicaciones</Text>
+                        <Text style={styles.emptySubtext}>Sé el primero en publicar</Text>
+                    </View>
+                }
             />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: theme.colors.background,
     },
     header: {
-        paddingTop: 60,
-        paddingBottom: 20,
+        paddingTop: 80,
+        paddingBottom: 24,
         paddingHorizontal: 20,
     },
     headerTitle: {
+        fontSize: 36,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        marginBottom: 4,
+    },
+    headerSubtitle: {
+        fontSize: 16,
+        color: '#ffffffcc',
+    },
+    headerAndroid: {
+        paddingTop: 80,
+        paddingBottom: 24,
+        paddingHorizontal: 20,
+        backgroundColor: theme.colors.primary,
+    },
+    headerTitleAndroid: {
         fontSize: 32,
         fontWeight: 'bold',
         color: '#ffffff',
+        marginBottom: 4,
     },
-    headerAndroid: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: '#8b5cf6',
+    headerSubtitleAndroid: {
+        fontSize: 14,
+        color: '#ffffffdd',
     },
-    headerTitleAndroid: {
-        fontSize: 28,
-        fontWeight: 'bold',
+    createContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    createButton: {
+        backgroundColor: theme.colors.primary,
+        paddingVertical: 14,
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    createButtonText: {
         color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600',
     },
     listContent: {
         padding: 16,
     },
     postCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        marginBottom: 16,
+        backgroundColor: theme.colors.card,
+        borderRadius: 16,
         padding: 16,
-        elevation: 2,
+        marginBottom: 16,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    postCardIOS: {
-        borderRadius: 20,
-        shadowOpacity: 0.15,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 8,
+        elevation: 3,
     },
     postHeader: {
         flexDirection: 'row',
@@ -160,70 +217,105 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         marginRight: 12,
+        backgroundColor: theme.colors.surfaceVariant,
+    },
+    avatarPlaceholder: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: theme.colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    avatarText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#ffffff',
     },
     userInfo: {
         flex: 1,
     },
     userName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
+        fontSize: 17,
+        fontWeight: '700',
+        color: theme.colors.text,
+        marginBottom: 2,
     },
     postTime: {
-        fontSize: 12,
-        color: '#999',
+        fontSize: 13,
+        color: theme.colors.textSecondary,
     },
     postContent: {
-        fontSize: 15,
-        color: '#333',
-        lineHeight: 22,
+        fontSize: 16,
+        color: theme.colors.text,
+        lineHeight: 24,
         marginBottom: 12,
     },
     postImage: {
         width: '100%',
-        height: 200,
+        height: 250,
         borderRadius: 12,
         marginBottom: 12,
+        backgroundColor: theme.colors.surfaceVariant,
     },
     musicCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: theme.isDark ? 'rgba(139, 92, 246, 0.2)' : '#ede9fe',
         padding: 12,
-        borderRadius: 8,
-        marginBottom: 12,
-    },
-    musicCardIOS: {
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
         borderRadius: 12,
+        marginBottom: 12,
     },
     musicIcon: {
         fontSize: 20,
         marginRight: 8,
     },
     musicText: {
-        fontSize: 14,
-        color: '#666',
+        fontSize: 15,
+        color: theme.colors.text,
         fontWeight: '500',
     },
     actions: {
         flexDirection: 'row',
-        gap: 20,
+        gap: 24,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border,
     },
     actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
     },
     actionIcon: {
-        fontSize: 18,
+        fontSize: 22,
     },
     actionText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 60,
+    },
+    emptyIcon: {
+        fontSize: 64,
+        marginBottom: 16,
+    },
+    emptyText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.colors.text,
+        marginBottom: 8,
+    },
+    emptySubtext: {
         fontSize: 14,
-        color: '#666',
+        color: theme.colors.textSecondary,
     },
 });

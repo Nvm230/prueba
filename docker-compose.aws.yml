@@ -35,9 +35,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/univibe
       # Permitir cualquier origen en AWS (cambiar por IP específica si prefieres)
       - CORS_ALLOWED_ORIGINS=*
-      # Spotify API Configuration
-      - SPOTIFY_CLIENT_ID=00add696219c4f0a96f9ddcabebcb2a3
-      - SPOTIFY_CLIENT_SECRET=6ebda14bfd66415cbc25677e2a9e3e37
+      # Spotify API Configuratio
       # Google OAuth Configuration
       - GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
       - GOOGLE_CLIENT_SECRET=YOUR_CLIENT_SECRET
