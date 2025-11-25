@@ -86,7 +86,7 @@ export const EventsScreen = ({ navigation }: any) => {
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
-                    <RefreshControl refreshing={isRefreshing} onRefresh={refetch} />
+                    <RefreshControl refreshing={isRefreshing ? true : false} onRefresh={refetch} />
                 }
                 ListEmptyComponent={
                     <View style={styles.empty}>

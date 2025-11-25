@@ -26,20 +26,61 @@ export interface AuthResponse {
 export const authService = {
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
         const response = await apiClient.post('/auth/login', credentials);
+        console.log('[AUTH] Login response:', response.data);
+
         const { token, user } = response.data;
 
-        await AsyncStorage.setItem('authToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
+        if (token) {
+            await AsyncStorage.setItem('authToken', token);
+            console.log('[AUTH] Token saved');
+        }
+
+        if (user) {
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            console.log('[AUTH] User saved:', user);
+        } else {
+            console.warn('[AUTH] No user object in response, will fetch user info');
+            // Si no viene el user, intentar obtenerlo del backend
+            try {
+                const userResponse = await apiClient.get('/users/me');
+                if (userResponse.data) {
+                    await AsyncStorage.setItem('user', JSON.stringify(userResponse.data));
+                    console.log('[AUTH] User fetched and saved:', userResponse.data);
+                }
+            } catch (error) {
+                console.error('[AUTH] Failed to fetch user info:', error);
+            }
+        }
 
         return response.data;
     },
 
     async register(data: RegisterData): Promise<AuthResponse> {
         const response = await apiClient.post('/auth/register', data);
+        console.log('[AUTH] Register response:', response.data);
+
         const { token, user } = response.data;
 
-        await AsyncStorage.setItem('authToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
+        if (token) {
+            await AsyncStorage.setItem('authToken', token);
+            console.log('[AUTH] Token saved');
+        }
+
+        if (user) {
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            console.log('[AUTH] User saved:', user);
+        } else {
+            console.warn('[AUTH] No user object in response, will fetch user info');
+            try {
+                const userResponse = await apiClient.get('/users/me');
+                if (userResponse.data) {
+                    await AsyncStorage.setItem('user', JSON.stringify(userResponse.data));
+                    console.log('[AUTH] User fetched and saved:', userResponse.data);
+                }
+            } catch (error) {
+                console.error('[AUTH] Failed to fetch user info:', error);
+            }
+        }
 
         return response.data;
     },
@@ -56,6 +97,6 @@ export const authService = {
 
     async isAuthenticated(): Promise<boolean> {
         const token = await AsyncStorage.getItem('authToken');
-        return !!token;
+        return token !== null && token !== undefined;
     },
 };

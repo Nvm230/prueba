@@ -21,12 +21,10 @@ const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();
 
 function MainTabs() {
-  const isIOS = Platform.OS === 'ios';
-
   return (
     <Tab.Navigator
       screenOptions={{
-        headerShown: false,
+        headerShown: !true,
         tabBarActiveTintColor: '#8b5cf6',
         tabBarInactiveTintColor: '#999',
         tabBarStyle: {
@@ -35,14 +33,14 @@ function MainTabs() {
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: isIOS ? 0.1 : 0.05,
-          shadowRadius: isIOS ? 8 : 4,
+          shadowOpacity: Platform.OS === 'ios' ? 0.1 : 0.05,
+          shadowRadius: Platform.OS === 'ios' ? 8 : 4,
           paddingBottom: 8,
           height: 60,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: '600' as any,
         },
       }}
     >
@@ -93,7 +91,7 @@ function MainTabs() {
 function Navigation() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading === true) {
+  if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#8b5cf6" />
@@ -103,7 +101,7 @@ function Navigation() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: !true }}>
         {!isAuthenticated ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
@@ -117,7 +115,7 @@ function Navigation() {
               component={QRScannerScreen}
               options={{
                 presentation: 'modal',
-                headerShown: true,
+                headerShown: !!true,
                 title: 'Escanear QR',
               }}
             />
@@ -125,7 +123,7 @@ function Navigation() {
               name="EventDetail"
               component={EventDetailScreen}
               options={{
-                headerShown: true,
+                headerShown: !!true,
                 title: 'Detalle del Evento',
               }}
             />
@@ -133,7 +131,7 @@ function Navigation() {
               name="ChatDetail"
               component={ChatDetailScreen}
               options={{
-                headerShown: true,
+                headerShown: !!true,
                 title: 'Chat',
               }}
             />

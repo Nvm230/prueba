@@ -13,7 +13,7 @@ export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'prima
     if (Platform.OS === 'ios' && variant === 'primary') {
         // LiquidCrystal style for iOS
         return (
-            <TouchableOpacity onPress={onPress} disabled={disabled} style={styles.iosButtonContainer}>
+            <TouchableOpacity onPress={onPress} disabled={disabled === true} style={styles.iosButtonContainer}>
                 <LinearGradient
                     colors={['#8b5cf6', '#7c3aed', '#6d28d9']}
                     start={{ x: 0, y: 0 }}
@@ -30,11 +30,11 @@ export const Button: React.FC<ButtonProps> = ({ title, onPress, variant = 'prima
     return (
         <TouchableOpacity
             onPress={onPress}
-            disabled={disabled}
+            disabled={disabled === true}
             style={[
                 styles.androidButton,
                 variant === 'primary' ? styles.androidButtonPrimary : styles.androidButtonSecondary,
-                disabled && styles.buttonDisabled
+                disabled === true && styles.buttonDisabled
             ]}
         >
             <Text style={[

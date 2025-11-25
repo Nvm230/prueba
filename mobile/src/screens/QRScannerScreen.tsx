@@ -43,7 +43,7 @@ export const QRScannerScreen = ({ navigation, route }: any) => {
         );
     }
 
-    if (hasPermission === false) {
+    if (!hasPermission) {
         return (
             <View style={styles.container}>
                 <Text style={styles.text}>No hay acceso a la cámara</Text>

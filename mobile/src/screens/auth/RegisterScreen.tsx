@@ -39,9 +39,24 @@ export const RegisterScreen = ({ navigation }: any) => {
 
         setIsLoading(true);
         try {
+            console.log('[REGISTER] Attempting registration for:', email);
             await register(name, email, password);
+            console.log('[REGISTER] Registration successful');
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Error al registrarse');
+            console.error('[REGISTER] Registration error:', error);
+            console.error('[REGISTER] Error response:', error.response?.data);
+
+            let errorMessage = 'Error al registrarse';
+
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.response?.status === 409 || error.response?.status === 400) {
+                errorMessage = 'Este correo ya está registrado. Intenta iniciar sesión.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Alert.alert('Error de registro', errorMessage);
         } finally {
             setIsLoading(false);
         }
