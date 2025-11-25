@@ -17,7 +17,7 @@ const hasActiveVideo = (stream?: MediaStream | null) =>
 const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const { localStream, remoteStreams, allowBroadcast, hasRemoteParticipant, mediaError, connectedUsers, connectedPeers, isScreenSharing, toggleScreenShare } = useCallSession({
+  const { localStream, remoteStreams, allowBroadcast, hasRemoteParticipant, mediaError, connectedUsers, connectedPeers } = useCallSession({
     session,
     onEnded: () => {
       pushToast({ type: 'info', title: 'Llamada finalizada', description: 'El organizador terminó la llamada.' });
@@ -212,21 +212,21 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
         </button>
       </div>
 
+      {/* Normal Grid Layout */}
       <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-        {/* Calcular el número total de participantes para el grid */}
+
         {(() => {
           const totalParticipants = remoteStreams.length +
             connectedUsers.filter((userId) => !remoteStreams.some((rs) => rs.userId === userId)).length +
             (allowBroadcast ? 1 : 0);
 
-          // Determinar el número de columnas según el número de participantes
           let gridCols = 'grid-cols-1';
           if (totalParticipants === 1) {
             gridCols = 'grid-cols-1';
           } else if (totalParticipants === 2) {
             gridCols = 'grid-cols-1 md:grid-cols-2';
           } else if (totalParticipants <= 4) {
-            gridCols = 'grid-cols-1 md:grid-cols-2';
+            gridCols = 'grid-cols-2';
           } else if (totalParticipants <= 6) {
             gridCols = 'grid-cols-2 md:grid-cols-3';
           } else {
@@ -234,10 +234,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
           }
 
           return (
-            <div className={`grid ${gridCols} gap-3 md:gap-4 w-full h-full max-h-full overflow-auto`}>
-              {/* Video local */}
+            <div className={`grid ${gridCols} gap-3 md:gap-4`}>
+              {/* Local video */}
               {allowBroadcast && (
-                <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden w-full min-h-0" style={{ aspectRatio: '16/9' }}>
+                <div className="relative bg-slate-900 rounded-xl overflow-hidden aspect-video">
                   <video
                     ref={localVideoRef}
                     autoPlay
@@ -246,53 +246,46 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
                     className={`w-full h-full object-cover ${!camEnabled || !hasActiveVideo(localStream) ? 'hidden' : ''}`}
                   />
                   {(!camEnabled || !hasActiveVideo(localStream)) && (
-                    <VideoPlaceholder label={user?.name ?? 'Tú'} avatarUrl={user?.profilePictureUrl} />
+                    <VideoPlaceholder label={user?.name ?? 'Tú'} avatarUrl={user?.profilePictureUrl} compact={false} />
                   )}
                   <span className="absolute bottom-2 left-2 md:bottom-3 md:left-3 text-white text-xs md:text-sm bg-black/60 backdrop-blur-sm px-2 md:px-3 py-1 md:py-1.5 rounded-full font-medium">
-                    {isScreenSharing ? 'Compartiendo pantalla' : 'Tú'}
+                    Tú
                   </span>
                 </div>
               )}
 
-              {/* Videos remotos */}
+              {/* Remote videos */}
               {remoteStreams.map((remote) => (
-                <RemoteVideo key={remote.userId} remote={remote} />
+                <RemoteVideo key={remote.userId} remote={remote} compact={false} isMain={false} />
               ))}
 
-              {/* En modo conferencia, mostrar usuarios con peer conectado (aunque no tengan stream remoto) */}
+              {/* Connected participants */}
               {session.mode === 'CONFERENCE' && connectedPeers
                 .filter((userId) => !remoteStreams.some((rs) => rs.userId === userId))
-                .map((userId) => {
-                  console.log('[CALL] Showing connected participant in conference mode:', userId);
-                  return <ConnectedParticipant key={userId} userId={userId} />;
-                })}
+                .map((userId) => (
+                  <ConnectedParticipant key={userId} userId={userId} compact={false} />
+                ))}
 
-              {/* Mostrar usuarios conectados que aún no tienen stream ni peer conectado (solo en modo normal) */}
+              {/* Connecting users */}
               {session.mode === 'NORMAL' && connectedUsers
                 .filter((userId) => {
                   const hasStream = remoteStreams.some((rs) => rs.userId === userId);
                   const hasConnectedPeer = connectedPeers?.includes(userId);
-
-                  // Solo mostrar como "conectando" si no tiene stream ni peer conectado
-                  if (!hasStream && !hasConnectedPeer) {
-                    console.log('[CALL] User', userId, 'is in connectedUsers but has no remoteStream or connected peer, showing as connecting');
-                    return true;
-                  }
-                  return false;
+                  return !hasStream && !hasConnectedPeer;
                 })
                 .map((userId) => (
-                  <ConnectingUser key={userId} userId={userId} />
+                  <ConnectingUser key={userId} userId={userId} compact={false} />
                 ))}
 
-              {/* Mensaje cuando no hay participantes remotos */}
+              {/* Empty state */}
               {!allowBroadcast && (
-                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex items-center justify-center text-white/70 px-4 md:px-6 text-center w-full min-h-0" style={{ aspectRatio: '16/9' }}>
+                <div className="col-span-full rounded-xl border border-white/20 border-dashed flex items-center justify-center text-white/70 p-6 text-center aspect-video">
                   <p className="text-sm md:text-base">Solo el anfitrión puede compartir audio y video en el modo conferencia.</p>
                 </div>
               )}
 
               {allowBroadcast && remoteStreams.length === 0 && (!hasRemoteParticipant || connectedUsers.length === 0) && (
-                <div className="rounded-xl md:rounded-2xl border border-white/20 border-dashed flex flex-col items-center justify-center text-white/60 p-6 md:p-8 w-full min-h-0" style={{ aspectRatio: '16/9' }}>
+                <div className="col-span-full rounded-xl border border-white/20 border-dashed flex items-center justify-center text-white/60 p-8 aspect-video">
                   <p className="text-base md:text-lg">Esperando participantes...</p>
                 </div>
               )}
@@ -322,16 +315,6 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
         >
           {camEnabled ? <VideoCameraIcon className="h-6 w-6" /> : <VideoCameraSlashIcon className="h-6 w-6" />}
         </button>
-        <button
-          type="button"
-          onClick={toggleScreenShare}
-          disabled={!allowBroadcast}
-          className={`rounded-full p-4 ${isScreenSharing ? 'bg-green-600' : 'bg-white/20'} text-white ${!allowBroadcast ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30'
-            }`}
-          title={!allowBroadcast ? 'Solo el anfitrión puede compartir pantalla en modo conferencia' : (isScreenSharing ? 'Dejar de compartir pantalla' : 'Compartir pantalla')}
-        >
-          <ComputerDesktopIcon className="h-6 w-6" />
-        </button>
         <button type="button" onClick={handleHangup} className="rounded-full p-4 bg-rose-600 text-white hover:bg-rose-700">
           <PhoneXMarkIcon className="h-6 w-6" />
         </button>
@@ -340,7 +323,7 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ session, onClose }) => {
   );
 };
 
-const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream } }> = ({ remote }) => {
+const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream }; compact?: boolean; isMain?: boolean }> = ({ remote, compact = false, isMain = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [userName, setUserName] = useState<string>(`Usuario #${remote.userId}`);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
@@ -378,22 +361,24 @@ const RemoteVideo: React.FC<{ remote: { userId: number; stream: MediaStream } }>
   }, [remote.stream]);
 
   return (
-    <div className="relative bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden w-full min-h-0" style={{ aspectRatio: '16/9' }}>
+    <div className={`relative bg-slate-900 rounded-lg overflow-hidden ${isMain ? 'w-full h-full' : 'aspect-video'}`}>
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        className={`w-full h-full object-cover ${hasVideo ? '' : 'hidden'}`}
+        className={`w-full h-full object-cover ${!hasVideo ? 'hidden' : ''}`}
       />
-      {!hasVideo && <VideoPlaceholder label={userName} avatarUrl={avatarUrl} />}
-      <span className="absolute bottom-2 left-2 md:bottom-3 md:left-3 text-white text-xs md:text-sm bg-black/60 backdrop-blur-sm px-2 md:px-3 py-1 md:py-1.5 rounded-full font-medium truncate max-w-[80%]">
+      {!hasVideo && (
+        <VideoPlaceholder label={userName} avatarUrl={avatarUrl} compact={compact} />
+      )}
+      <span className={`absolute ${isMain ? 'bottom-4 left-4' : 'bottom-2 left-2'} text-white ${isMain ? 'text-sm' : 'text-xs'} bg-black/${isMain ? '60' : '70'} backdrop-blur-sm px-${isMain ? '3' : '2'} py-${isMain ? '1.5' : '1'} rounded-lg font-medium`}>
         {userName}
       </span>
     </div>
   );
 };
 
-const VideoPlaceholder: React.FC<{ label: string; avatarUrl?: string }> = ({ label, avatarUrl }) => (
+const VideoPlaceholder: React.FC<{ label: string; avatarUrl?: string; compact?: boolean }> = ({ label, avatarUrl, compact = false }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4">
     {avatarUrl ? (
       <img
@@ -421,7 +406,7 @@ const VideoPlaceholder: React.FC<{ label: string; avatarUrl?: string }> = ({ lab
   </div>
 );
 
-const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
+const ConnectingUser: React.FC<{ userId: number; compact?: boolean }> = ({ userId, compact = false }) => {
   const [userName, setUserName] = useState<string>(`Usuario #${userId}`);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
 
@@ -474,7 +459,7 @@ const ConnectingUser: React.FC<{ userId: number }> = ({ userId }) => {
   );
 };
 
-const ConnectedParticipant: React.FC<{ userId: number }> = ({ userId }) => {
+const ConnectedParticipant: React.FC<{ userId: number; compact?: boolean }> = ({ userId, compact = false }) => {
   const [userName, setUserName] = useState<string>(`Usuario #${userId}`);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
 

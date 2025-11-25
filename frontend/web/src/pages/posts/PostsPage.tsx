@@ -112,8 +112,8 @@ const PostsPage = () => {
     return match ? match[1] : null;
   };
 
-  // Componente para mostrar el reproductor de música
-  const MusicPlayer = ({ post }: { post: Post }) => {
+  // Componente para mostrar el reproductor de música (memoizado para evitar re-renders)
+  const MusicPlayer = React.memo(({ post }: { post: Post }) => {
     const [trackInfo, setTrackInfo] = useState<SpotifyTrack | null>(null);
     const trackId = post.musicUrl ? getSpotifyTrackId(post.musicUrl) : null;
     const hasImage = post.mediaUrl && post.mediaUrl.trim() !== '';
@@ -201,7 +201,7 @@ const PostsPage = () => {
         </div>
       </div>
     );
-  };
+  });
 
   const handlePlayMusic = (postId: number, musicUrl: string) => {
     console.log('[POSTS] handlePlayMusic called with:', { postId, musicUrl });
@@ -334,31 +334,6 @@ const PostsPage = () => {
     page: postsData.page,
     size: postsData.size
   } : null;
-
-  // Debug: Log posts data
-  useEffect(() => {
-    if (posts.length > 0) {
-      console.log('[POSTS DEBUG] Posts loaded:', JSON.stringify(posts.map(p => ({
-        id: p.id,
-        content: p.content,
-        hasMediaUrl: !!p.mediaUrl,
-        mediaUrl: p.mediaUrl,
-        hasMusicUrl: !!p.musicUrl,
-        musicUrl: p.musicUrl,
-        musicUrlType: typeof p.musicUrl,
-        musicUrlValue: p.musicUrl,
-        musicUrlTrimmed: p.musicUrl ? p.musicUrl.trim() : null,
-        willShowMusicButton: p.musicUrl && p.musicUrl.trim() !== ''
-      })), null, 2));
-    }
-  }, [posts]);
-
-  // Debug: Log postsData raw
-  useEffect(() => {
-    if (postsData) {
-      console.log('[POSTS DEBUG] Raw postsData:', JSON.stringify(postsData, null, 2));
-    }
-  }, [postsData]);
 
   if (isLoading) {
     return <LoadingOverlay message="Cargando publicaciones" />;

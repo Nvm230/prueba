@@ -11,22 +11,29 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { eventService } from '../../services/events';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const HomeScreen = ({ navigation }: any) => {
+    const { theme } = useTheme();
     const { data: events } = useQuery({
         queryKey: ['events'],
         queryFn: eventService.getAll,
     });
 
     const isIOS = Platform.OS === 'ios';
-    const upcomingEvents = events?.slice(0, 3) || [];
+
+    // Handle both array and paginated response
+    const eventsArray = Array.isArray(events) ? events : (events?.content || []);
+    const upcomingEvents = eventsArray.slice(0, 3);
+
+    const styles = createStyles(theme, isIOS);
 
     return (
         <ScrollView style={styles.container}>
             {/* Header */}
             {isIOS ? (
                 <LinearGradient
-                    colors={['#667eea', '#764ba2']}
+                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.headerIOS}
@@ -73,38 +80,45 @@ export const HomeScreen = ({ navigation }: any) => {
                 <Text style={[styles.sectionTitle, isIOS && styles.sectionTitleIOS]}>
                     Próximos Eventos
                 </Text>
-                {upcomingEvents.map((event) => (
-                    <TouchableOpacity
-                        key={event.id}
-                        style={[styles.eventCard, isIOS && styles.eventCardIOS]}
-                        onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
-                    >
-                        {event.imageUrl && (
-                            <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
-                        )}
-                        <View style={styles.eventInfo}>
-                            <Text style={styles.eventTitle}>{event.title}</Text>
-                            <Text style={styles.eventLocation}>📍 {event.location}</Text>
-                            <Text style={styles.eventTime}>
-                                🕐 {new Date(event.startTime).toLocaleDateString('es-ES', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                ))}
+                {upcomingEvents.length > 0 ? (
+                    upcomingEvents.map((event: any) => (
+                        <TouchableOpacity
+                            key={event.id}
+                            style={[styles.eventCard, isIOS && styles.eventCardIOS]}
+                            onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+                        >
+                            {event.imageUrl && (
+                                <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
+                            )}
+                            <View style={styles.eventInfo}>
+                                <Text style={styles.eventTitle}>{event.title}</Text>
+                                <Text style={styles.eventLocation}>📍 {event.location}</Text>
+                                <Text style={styles.eventTime}>
+                                    🕐 {new Date(event.startTime).toLocaleDateString('es-ES', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    ))
+                ) : (
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>📅</Text>
+                        <Text style={styles.emptyText}>No hay eventos próximos</Text>
+                    </View>
+                )}
             </View>
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: theme.colors.background,
     },
     headerIOS: {
         paddingTop: 80,
@@ -125,7 +139,7 @@ const styles = StyleSheet.create({
         paddingTop: 80,
         paddingBottom: 40,
         paddingHorizontal: 20,
-        backgroundColor: '#8b5cf6',
+        backgroundColor: theme.colors.primary,
     },
     greetingAndroid: {
         fontSize: 32,
@@ -145,19 +159,21 @@ const styles = StyleSheet.create({
     },
     actionCard: {
         flex: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.colors.card,
         borderRadius: 12,
         padding: 20,
         alignItems: 'center',
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 4,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     actionCardIOS: {
         borderRadius: 16,
-        shadowOpacity: 0.15,
+        shadowOpacity: theme.isDark ? 0.4 : 0.15,
         shadowRadius: 8,
     },
     actionIcon: {
@@ -167,16 +183,17 @@ const styles = StyleSheet.create({
     actionText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#333',
+        color: theme.colors.text,
     },
     section: {
         marginTop: 32,
         paddingHorizontal: 16,
+        marginBottom: 24,
     },
     sectionTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#333',
+        color: theme.colors.text,
         marginBottom: 16,
     },
     sectionTitleIOS: {
@@ -184,25 +201,27 @@ const styles = StyleSheet.create({
     },
     eventCard: {
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.colors.card,
         borderRadius: 12,
         marginBottom: 12,
         overflow: 'hidden',
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 4,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     eventCardIOS: {
         borderRadius: 16,
-        shadowOpacity: 0.15,
+        shadowOpacity: theme.isDark ? 0.4 : 0.15,
         shadowRadius: 8,
     },
     eventImage: {
         width: 100,
         height: 100,
-        backgroundColor: '#e0e0e0',
+        backgroundColor: theme.colors.surfaceVariant,
     },
     eventInfo: {
         flex: 1,
@@ -211,17 +230,29 @@ const styles = StyleSheet.create({
     eventTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333',
+        color: theme.colors.text,
         marginBottom: 4,
     },
     eventLocation: {
         fontSize: 13,
-        color: '#666',
+        color: theme.colors.textSecondary,
         marginBottom: 2,
     },
     eventTime: {
         fontSize: 13,
-        color: '#8b5cf6',
+        color: theme.colors.primary,
         fontWeight: '500',
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: 12,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: theme.colors.textSecondary,
     },
 });

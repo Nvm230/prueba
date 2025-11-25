@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import { LoginScreen } from './src/screens/auth/LoginScreen';
 import { RegisterScreen } from './src/screens/auth/RegisterScreen';
 import { HomeScreen } from './src/screens/tabs/HomeScreen';
@@ -145,9 +146,11 @@ function Navigation() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Navigation />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Navigation />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

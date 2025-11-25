@@ -7,44 +7,59 @@ import {
     Image,
     TouchableOpacity,
     Platform,
+    Switch,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../../components/ui/Button';
 
 export const ProfileScreen = () => {
     const { user, logout } = useAuth();
+    const { theme, themeMode, setThemeMode, toggleTheme } = useTheme();
     const isIOS = Platform.OS === 'ios';
 
     const handleLogout = async () => {
         await logout();
     };
 
+    const styles = createStyles(theme, isIOS);
+
     return (
         <ScrollView style={styles.container}>
             {/* Header */}
             {isIOS ? (
                 <LinearGradient
-                    colors={['#667eea', '#764ba2', '#f093fb']}
+                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed', '#a855f7']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.headerIOS}
                 >
                     <Image
-                        source={{ uri: user?.photoUrl || 'https://via.placeholder.com/100' }}
+                        source={{ uri: user?.profilePictureUrl || 'https://via.placeholder.com/100' }}
                         style={styles.avatarLarge}
                     />
                     <Text style={styles.nameIOS}>{user?.name}</Text>
                     <Text style={styles.emailIOS}>{user?.email}</Text>
+                    {user?.points !== undefined && (
+                        <View style={styles.pointsBadge}>
+                            <Text style={styles.pointsText}>⭐ {user.points} puntos</Text>
+                        </View>
+                    )}
                 </LinearGradient>
             ) : (
                 <View style={styles.headerAndroid}>
                     <Image
-                        source={{ uri: user?.photoUrl || 'https://via.placeholder.com/100' }}
+                        source={{ uri: user?.profilePictureUrl || 'https://via.placeholder.com/100' }}
                         style={styles.avatarLarge}
                     />
                     <Text style={styles.nameAndroid}>{user?.name}</Text>
                     <Text style={styles.emailAndroid}>{user?.email}</Text>
+                    {user?.points !== undefined && (
+                        <View style={styles.pointsBadge}>
+                            <Text style={styles.pointsText}>⭐ {user.points} puntos</Text>
+                        </View>
+                    )}
                 </View>
             )}
 
@@ -68,6 +83,18 @@ export const ProfileScreen = () => {
 
             {/* Menu Options */}
             <View style={[styles.menuContainer, isIOS && styles.menuContainerIOS]}>
+                {/* Dark Mode Toggle */}
+                <View style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
+                    <Text style={styles.menuIcon}>{theme.isDark ? '🌙' : '☀️'}</Text>
+                    <Text style={styles.menuText}>Modo Oscuro</Text>
+                    <Switch
+                        value={theme.isDark}
+                        onValueChange={toggleTheme}
+                        trackColor={{ false: '#cbd5e1', true: theme.colors.primary }}
+                        thumbColor={theme.isDark ? '#f8fafc' : '#ffffff'}
+                    />
+                </View>
+
                 <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
                     <Text style={styles.menuIcon}>👤</Text>
                     <Text style={styles.menuText}>Editar Perfil</Text>
@@ -81,12 +108,18 @@ export const ProfileScreen = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
+                    <Text style={styles.menuIcon}>🏆</Text>
+                    <Text style={styles.menuText}>Logros</Text>
+                    <Text style={styles.menuArrow}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
                     <Text style={styles.menuIcon}>👥</Text>
                     <Text style={styles.menuText}>Amigos</Text>
                     <Text style={styles.menuArrow}>›</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
+                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS, styles.menuItemLast]}>
                     <Text style={styles.menuIcon}>⚙️</Text>
                     <Text style={styles.menuText}>Configuración</Text>
                     <Text style={styles.menuArrow}>›</Text>
@@ -105,10 +138,10 @@ export const ProfileScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: theme.colors.background,
     },
     headerIOS: {
         paddingTop: 80,
@@ -119,7 +152,7 @@ const styles = StyleSheet.create({
         paddingTop: 80,
         paddingBottom: 40,
         alignItems: 'center',
-        backgroundColor: '#8b5cf6',
+        backgroundColor: theme.colors.primary,
     },
     avatarLarge: {
         width: 100,
@@ -149,9 +182,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#ffffffdd',
     },
+    pointsBadge: {
+        marginTop: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+    },
+    pointsText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '600',
+    },
     statsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.colors.card,
         marginHorizontal: 16,
         marginTop: -20,
         borderRadius: 12,
@@ -159,12 +206,14 @@ const styles = StyleSheet.create({
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme.isDark ? 0.3 : 0.1,
         shadowRadius: 4,
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     statsContainerIOS: {
         borderRadius: 20,
-        shadowOpacity: 0.15,
+        shadowOpacity: theme.isDark ? 0.4 : 0.15,
         shadowRadius: 8,
     },
     statItem: {
@@ -174,7 +223,7 @@ const styles = StyleSheet.create({
     statNumber: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#8b5cf6',
+        color: theme.colors.primary,
         marginBottom: 4,
     },
     statNumberIOS: {
@@ -182,18 +231,20 @@ const styles = StyleSheet.create({
     },
     statLabel: {
         fontSize: 14,
-        color: '#666',
+        color: theme.colors.textSecondary,
     },
     statDivider: {
         width: 1,
-        backgroundColor: '#e0e0e0',
+        backgroundColor: theme.colors.border,
     },
     menuContainer: {
         marginTop: 24,
         marginHorizontal: 16,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.colors.card,
         borderRadius: 12,
         overflow: 'hidden',
+        borderWidth: theme.isDark ? 1 : 0,
+        borderColor: theme.colors.border,
     },
     menuContainerIOS: {
         borderRadius: 20,
@@ -203,10 +254,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: theme.colors.border,
     },
     menuItemIOS: {
         padding: 18,
+    },
+    menuItemLast: {
+        borderBottomWidth: 0,
     },
     menuIcon: {
         fontSize: 24,
@@ -215,11 +269,11 @@ const styles = StyleSheet.create({
     menuText: {
         flex: 1,
         fontSize: 16,
-        color: '#333',
+        color: theme.colors.text,
     },
     menuArrow: {
         fontSize: 24,
-        color: '#999',
+        color: theme.colors.textSecondary,
     },
     logoutContainer: {
         padding: 16,

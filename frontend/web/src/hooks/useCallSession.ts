@@ -11,6 +11,7 @@ interface UseCallSessionOptions {
 interface RemoteStream {
   userId: number;
   stream: MediaStream;
+  isScreenShare?: boolean;
 }
 
 const ICE_SERVERS = [
@@ -29,9 +30,6 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
   const allowBroadcast = session && user ? (session.mode === 'NORMAL' || session.createdById === user.id) : false;
   const [hasRemoteParticipant, setHasRemoteParticipant] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const screenStreamRef = useRef<MediaStream | null>(null);
-  const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   useEffect(() => {
     if (!session || !user) {
@@ -40,11 +38,11 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
 
     // Validar HTTPS en producción (WebRTC requiere HTTPS excepto en localhost)
     if (typeof window !== 'undefined') {
-      const isLocalhost = window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1' ||
-                         window.location.hostname === '[::1]';
+      const isLocalhost = window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '[::1]';
       const isHttps = window.location.protocol === 'https:';
-      
+
       if (!isLocalhost && !isHttps) {
         const errorMsg = 'Las videollamadas requieren HTTPS en producción. Por favor, accede a la aplicación usando HTTPS (https://...) en lugar de HTTP.';
         console.error('[CALL] WebRTC blocked: HTTPS required in production');
@@ -59,7 +57,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       // En modo conferencia, solo el creador puede solicitar micrófono y cámara
       const isConferenceMode = session.mode === 'CONFERENCE';
       const isCreator = session.createdById === user.id;
-      
+
       if (isConferenceMode && !isCreator) {
         // En modo conferencia, usuarios que no son el creador no solicitan dispositivos
         setMediaError('En modo conferencia, solo el anfitrión puede compartir audio y video.');
@@ -120,7 +118,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
 
     const handleSignal = (signal: CallSignal) => {
       if (!session || !user) return;
-      
+
       // Manejar diferentes tipos de señales WebRTC
       if (signal.type === 'offer') {
         // Recibimos una oferta, crear peer como receptor
@@ -130,7 +128,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
           console.warn('[CALL] Invalid offer: otherUserId:', otherUserId, 'myId:', user.id);
           return;
         }
-        
+
         let peer = peersRef.current[otherUserId];
         if (!peer) {
           console.log('[CALL] Creating peer as receiver for user:', otherUserId, 'hasLocalStream:', !!localStreamRef.current, 'allowBroadcast:', allowBroadcast, 'mode:', session.mode);
@@ -186,31 +184,31 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
           console.log('[CALL] User joined:', otherUserId, 'My ID:', user.id, 'Has stream:', !!localStreamRef.current, 'Allow broadcast:', allowBroadcast);
           connectedUsersRef.current.add(otherUserId);
           setHasRemoteParticipant(true);
-          
+
           // Función para intentar crear el peer
           const tryCreatePeer = () => {
             // En modo conferencia, solo el creador puede iniciar peers
             const isConferenceMode = session.mode === 'CONFERENCE';
             const isCreator = session.createdById === user.id;
-            
+
             // En modo conferencia, si no somos el creador, no podemos crear peers como iniciador
             if (isConferenceMode && !isCreator) {
               console.log('[CALL] Conference mode: I am not creator, will wait for offer from creator');
               return;
             }
-            
+
             if (!allowBroadcast || !localStreamRef.current) {
               console.log('[CALL] Cannot create peer - allowBroadcast:', allowBroadcast, 'hasStream:', !!localStreamRef.current);
               return;
             }
-            
+
             // Validar que el stream tenga tracks
             const tracks = localStreamRef.current.getTracks();
             if (tracks.length === 0) {
               console.log('[CALL] Stream has no tracks yet, waiting...');
               return;
             }
-            
+
             // Determinar quién es el iniciador:
             // - En modo conferencia: siempre el creador
             // - En modo normal: el usuario con ID mayor
@@ -222,7 +220,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
               shouldBeInitiator = user.id > otherUserId;
               console.log('[CALL] Normal mode: I am', (shouldBeInitiator ? 'initiator' : 'receiver'), '(', user.id, shouldBeInitiator ? '>' : '<', otherUserId, ')');
             }
-            
+
             if (shouldBeInitiator) {
               console.log('[CALL] Creating peer as initiator for user:', otherUserId);
               if (!peersRef.current[otherUserId]) {
@@ -245,7 +243,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
               console.log('[CALL] I am receiver, waiting for offer from user:', otherUserId);
             }
           };
-          
+
           // Intentar crear peer inmediatamente si tenemos stream
           if (allowBroadcast && localStreamRef.current) {
             tryCreatePeer();
@@ -336,23 +334,23 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
         });
       }
     });
-    
+
     // Si hay participantes conectados pero no hay peers creados, intentar crearlos
     // Esto puede pasar si el stream se obtuvo después de recibir el join
     // Solo crear peers como iniciadores (el usuario con ID mayor)
     if (connectedUsersRef.current.size > 0 && localStreamRef.current && allowBroadcast) {
       const tracks = localStreamRef.current.getTracks();
       console.log('[CALL] Stream ready, checking for peers to create. Connected users:', Array.from(connectedUsersRef.current), 'Current peers:', Object.keys(peersRef.current), 'Tracks:', tracks.length);
-      
+
       if (tracks.length === 0) {
         console.log('[CALL] Stream has no tracks yet, will retry...');
         return;
       }
-      
+
       // Determinar quién es el iniciador basado en el modo
       const isConferenceMode = session?.mode === 'CONFERENCE';
       const isCreator = session?.createdById === user?.id;
-      
+
       connectedUsersRef.current.forEach((otherUserId) => {
         if (otherUserId !== user?.id && !peersRef.current[otherUserId]) {
           // En modo conferencia, solo el creador puede ser iniciador
@@ -365,7 +363,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
             shouldBeInitiator = (user?.id || 0) > otherUserId;
             console.log('[CALL] Normal mode: I am', (shouldBeInitiator ? 'initiator' : 'receiver'), '(', user?.id, shouldBeInitiator ? '>' : '<', otherUserId, ')');
           }
-          
+
           if (shouldBeInitiator) {
             // Solo crear como iniciador si tenemos stream
             console.log('[CALL] ⚡ Creating peer for user:', otherUserId, 'as initiator (stream now ready with', tracks.length, 'tracks)');
@@ -407,15 +405,15 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       }
       return existingPeer;
     }
-    
+
     // Como receptor, no necesitamos stream local para recibir streams remotos
     // Solo lo necesitamos si queremos enviar media también
     const hasLocalStream = allowBroadcast && localStreamRef.current;
-    
+
     if (!hasLocalStream) {
       console.log('[CALL] Creating peer as receiver without local stream (will only receive)');
     }
-    
+
     const peerConfig: any = {
       initiator: false,
       trickle: true,
@@ -423,22 +421,22 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
         iceServers: ICE_SERVERS
       }
     };
-    
+
     // Solo agregar stream si lo tenemos (para enviar media)
     if (hasLocalStream) {
       peerConfig.stream = localStreamRef.current;
       console.log('[CALL] Including local stream in receiver peer config');
     }
-    
+
     console.log('[CALL] Creating SimplePeer as receiver with offer, hasLocalStream:', hasLocalStream);
-    
+
     try {
       const peer = new SimplePeer(peerConfig);
-      
+
       // IMPORTANTE: Configurar handlers ANTES de señalar el offer
       // Esto asegura que el answer se capture y envíe correctamente
       setupPeerHandlers(peer, otherUserId);
-      
+
       // Señalar el offer después de configurar los handlers
       if (offer) {
         try {
@@ -450,7 +448,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
           console.error('[CALL] Error signaling offer during peer creation:', error);
         }
       }
-      
+
       peersRef.current[otherUserId] = peer;
       console.log('[CALL] ✓ Peer created as receiver successfully');
       return peer;
@@ -512,14 +510,13 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     peer.on('stream', (stream) => {
       const videoTracks = stream.getVideoTracks();
       const audioTracks = stream.getAudioTracks();
-      console.log('[CALL] 📥 Received remote stream from user:', otherUserId, 
+      console.log('[CALL] 📥 Received remote stream from user:', otherUserId,
         'Total tracks:', stream.getTracks().length,
         'Video tracks:', videoTracks.length,
         'Audio tracks:', audioTracks.length,
         'Stream ID:', stream.id);
-      
-      // Agregar el stream a remoteStreams incluso si solo tiene audio
-      // Esto asegura que el usuario aparezca como conectado, no como "conectando"
+
+      // Agregar el stream a remoteStreams
       setRemoteStreams((prev) => {
         const filtered = prev.filter((p) => p.userId !== otherUserId);
         const updated = [...filtered, { userId: otherUserId, stream }];
@@ -528,7 +525,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       });
       setHasRemoteParticipant(true);
     });
-    
+
     peer.on('connect', () => {
       console.log('[CALL] ✓ Peer connected with user:', otherUserId);
       connectedPeersRef.current.add(otherUserId);
@@ -566,13 +563,13 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       console.log('[CALL] Peer already exists for user:', otherUserId);
       return peersRef.current[otherUserId];
     }
-    
+
     // Solo crear peer si tenemos stream local cuando es necesario
     if (initiator && (!allowBroadcast || !localStreamRef.current)) {
       console.warn('[CALL] Cannot create peer as initiator without local stream. allowBroadcast:', allowBroadcast, 'hasStream:', !!localStreamRef.current);
       return null;
     }
-    
+
     // Validar que el stream tenga tracks antes de crear el peer
     if (initiator && localStreamRef.current) {
       const tracks = localStreamRef.current.getTracks();
@@ -582,7 +579,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
       }
       console.log('[CALL] Stream has', tracks.length, 'tracks:', tracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
     }
-    
+
     // Como receptor, podemos crear el peer sin stream local (solo recibiremos)
     // El stream local solo es necesario si queremos enviar media también
     // Validar que el stream sea un MediaStream válido
@@ -603,13 +600,13 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
         console.error('[CALL] localStreamRef.current is not a MediaStream:', typeof localStreamRef.current, localStreamRef.current);
       }
     }
-    
+
     if (!validStream && initiator) {
       // Si somos iniciador y no tenemos stream válido, no podemos crear el peer
       console.error('[CALL] Cannot create peer as initiator without valid stream');
       return null;
     }
-    
+
     // Crear configuración con stream directamente (como sugiere la documentación)
     const peerConfig: any = {
       initiator: Boolean(initiator),
@@ -618,7 +615,7 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
         iceServers: ICE_SERVERS
       }
     };
-    
+
     // Pasar el stream directamente en la configuración (SimplePeer lo espera así)
     // Solo agregar stream si lo tenemos (para enviar media)
     if (validStream) {
@@ -627,22 +624,22 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     } else if (!initiator) {
       console.log('[CALL] No local stream - peer will only receive remote streams');
     }
-    
-    console.log('[CALL] Creating SimplePeer with config:', { 
-      initiator, 
+
+    console.log('[CALL] Creating SimplePeer with config:', {
+      initiator,
       hasStream: !!peerConfig.stream,
       streamId: peerConfig.stream?.id,
       userId: otherUserId
     });
-    
+
     try {
       // Crear el peer con la configuración completa
       const peer = new SimplePeer(peerConfig);
       console.log('[CALL] ✓ SimplePeer instance created successfully');
-      
+
       // Configurar handlers inmediatamente
       setupPeerHandlers(peer, otherUserId);
-      
+
       peersRef.current[otherUserId] = peer;
       console.log('[CALL] ✓ SimplePeer fully configured for user:', otherUserId);
       return peer;
@@ -671,101 +668,14 @@ export const useCallSession = ({ session, onEnded }: UseCallSessionOptions) => {
     }
   };
 
-  const toggleScreenShare = async () => {
-    if (!localStreamRef.current || !allowBroadcast) {
-      return;
-    }
-
-    try {
-      if (isScreenSharing) {
-        // Detener compartir pantalla - restaurar video track original
-        if (originalVideoTrackRef.current && localStreamRef.current) {
-          const currentVideoTrack = localStreamRef.current.getVideoTracks()[0];
-          if (currentVideoTrack) {
-            currentVideoTrack.stop();
-            localStreamRef.current.removeTrack(currentVideoTrack);
-          }
-          
-          localStreamRef.current.addTrack(originalVideoTrackRef.current);
-          originalVideoTrackRef.current.enabled = true;
-          
-          // Actualizar todos los peers
-          Object.values(peersRef.current).forEach((peer) => {
-            if (peer && !peer.destroyed) {
-              peer.replaceTrack(originalVideoTrackRef.current!, localStreamRef.current!);
-            }
-          });
-        }
-        
-        // Detener el stream de pantalla
-        if (screenStreamRef.current) {
-          screenStreamRef.current.getTracks().forEach(track => track.stop());
-          screenStreamRef.current = null;
-        }
-        
-        originalVideoTrackRef.current = null;
-        setIsScreenSharing(false);
-      } else {
-        // Iniciar compartir pantalla
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
-        
-        screenStreamRef.current = screenStream;
-        
-        // Guardar el video track original
-        const originalVideoTrack = localStreamRef.current.getVideoTracks()[0];
-        if (originalVideoTrack) {
-          originalVideoTrackRef.current = originalVideoTrack;
-        }
-        
-        // Reemplazar el video track con el de pantalla
-        const screenVideoTrack = screenStream.getVideoTracks()[0];
-        if (screenVideoTrack && localStreamRef.current) {
-          // Remover el track de video actual
-          const currentVideoTrack = localStreamRef.current.getVideoTracks()[0];
-          if (currentVideoTrack) {
-            localStreamRef.current.removeTrack(currentVideoTrack);
-            currentVideoTrack.enabled = false; // Desactivar pero no detener
-          }
-          
-          // Agregar el track de pantalla
-          localStreamRef.current.addTrack(screenVideoTrack);
-          
-          // Actualizar todos los peers con el nuevo track
-          Object.values(peersRef.current).forEach((peer) => {
-            if (peer && !peer.destroyed) {
-              peer.replaceTrack(screenVideoTrack, localStreamRef.current!);
-            }
-          });
-        }
-        
-        // Detener compartir cuando el usuario cierra la ventana de selección
-        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-          if (isScreenSharing) {
-            toggleScreenShare();
-          }
-        });
-        
-        setIsScreenSharing(true);
-      }
-    } catch (error: any) {
-      console.error('[CALL] Error toggling screen share:', error);
-      setMediaError(error?.message || 'Error al compartir pantalla');
-    }
-  };
-
   return {
     localStream,
     remoteStreams,
     allowBroadcast,
     hasRemoteParticipant,
     mediaError,
-    isScreenSharing,
-    toggleScreenShare,
-    connectedUsers: Array.from(connectedUsersRef.current), // Export connected users for display
-    connectedPeers: Array.from(connectedPeersRef.current) // Export users with connected peers (even without remote stream)
+    connectedUsers: Array.from(connectedUsersRef.current),
+    connectedPeers: Array.from(connectedPeersRef.current)
   };
 };
 

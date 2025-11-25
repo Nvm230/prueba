@@ -8,8 +8,11 @@ import {
     Platform,
     ScrollView,
     Alert,
+    TouchableOpacity,
+    Animated,
 } from 'react-native';
-import { GradientBackground } from '../../components/ui/GradientBackground';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -20,6 +23,15 @@ export const RegisterScreen = ({ navigation }: any) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
+    const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+        }).start();
+    }, []);
 
     const handleRegister = async () => {
         if (!name || !email || !password || !confirmPassword) {
@@ -65,7 +77,12 @@ export const RegisterScreen = ({ navigation }: any) => {
     const isIOS = Platform.OS === 'ios';
 
     return (
-        <GradientBackground>
+        <LinearGradient
+            colors={['#5b21b6', '#7c3aed', '#a855f7']}
+            style={styles.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+        >
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
@@ -73,79 +90,161 @@ export const RegisterScreen = ({ navigation }: any) => {
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
                 >
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <Text style={[styles.title, isIOS && styles.titleIOS]}>Crear Cuenta</Text>
-                        <Text style={[styles.subtitle, isIOS && styles.subtitleIOS]}>
-                            Únete a la comunidad universitaria
-                        </Text>
-                    </View>
-
-                    {/* Register Form */}
-                    <View style={[styles.formContainer, isIOS && styles.formContainerIOS]}>
-                        <TextInput
-                            style={[styles.input, isIOS && styles.inputIOS]}
-                            placeholder="Nombre completo"
-                            placeholderTextColor={isIOS ? '#ffffff80' : '#999'}
-                            value={name}
-                            onChangeText={setName}
-                            autoCapitalize="words"
-                        />
-
-                        <TextInput
-                            style={[styles.input, isIOS && styles.inputIOS]}
-                            placeholder="Correo electrónico"
-                            placeholderTextColor={isIOS ? '#ffffff80' : '#999'}
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                        />
-
-                        <TextInput
-                            style={[styles.input, isIOS && styles.inputIOS]}
-                            placeholder="Contraseña"
-                            placeholderTextColor={isIOS ? '#ffffff80' : '#999'}
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
-
-                        <TextInput
-                            style={[styles.input, isIOS && styles.inputIOS]}
-                            placeholder="Confirmar contraseña"
-                            placeholderTextColor={isIOS ? '#ffffff80' : '#999'}
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            secureTextEntry
-                        />
-
-                        <Button
-                            title={isLoading ? 'Registrando...' : 'Registrarse'}
-                            onPress={handleRegister}
-                            disabled={isLoading}
-                        />
-
-                        <View style={styles.loginLink}>
-                            <Text style={[styles.loginText, isIOS && styles.loginTextIOS]}>
-                                ¿Ya tienes cuenta?{' '}
-                            </Text>
-                            <Text
-                                style={[styles.loginButton, isIOS && styles.loginButtonIOS]}
-                                onPress={() => navigation.navigate('Login')}
-                            >
-                                Inicia sesión
+                    <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+                        {/* Header */}
+                        <View style={styles.header}>
+                            <Text style={styles.logo}>🎓</Text>
+                            <Text style={styles.title}>Crear Cuenta</Text>
+                            <Text style={styles.subtitle}>
+                                Únete a la comunidad universitaria
                             </Text>
                         </View>
-                    </View>
+
+                        {/* Register Form */}
+                        {isIOS ? (
+                            <BlurView intensity={20} tint="light" style={styles.formContainer}>
+                                <View style={styles.formInner}>
+                                    <Text style={styles.formTitle}>Regístrate</Text>
+
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Nombre completo"
+                                            placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                                            value={name}
+                                            onChangeText={setName}
+                                            autoCapitalize="words"
+                                        />
+                                    </View>
+
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Correo electrónico"
+                                            placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                                            value={email}
+                                            onChangeText={setEmail}
+                                            autoCapitalize="none"
+                                            keyboardType="email-address"
+                                        />
+                                    </View>
+
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Contraseña"
+                                            placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            secureTextEntry
+                                        />
+                                    </View>
+
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Confirmar contraseña"
+                                            placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                                            value={confirmPassword}
+                                            onChangeText={setConfirmPassword}
+                                            secureTextEntry
+                                        />
+                                    </View>
+
+                                    <Button
+                                        title={isLoading ? 'Registrando...' : 'Registrarse'}
+                                        onPress={handleRegister}
+                                        disabled={isLoading}
+                                    />
+
+                                    <TouchableOpacity
+                                        style={styles.loginLink}
+                                        onPress={() => navigation.navigate('Login')}
+                                    >
+                                        <Text style={styles.loginText}>
+                                            ¿Ya tienes cuenta? <Text style={styles.loginTextBold}>Inicia sesión</Text>
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </BlurView>
+                        ) : (
+                            <View style={[styles.formContainer, styles.formContainerAndroid]}>
+                                <Text style={[styles.formTitle, styles.formTitleAndroid]}>Regístrate</Text>
+
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputAndroid]}
+                                        placeholder="Nombre completo"
+                                        placeholderTextColor="#999"
+                                        value={name}
+                                        onChangeText={setName}
+                                        autoCapitalize="words"
+                                    />
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputAndroid]}
+                                        placeholder="Correo electrónico"
+                                        placeholderTextColor="#999"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        autoCapitalize="none"
+                                        keyboardType="email-address"
+                                    />
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputAndroid]}
+                                        placeholder="Contraseña"
+                                        placeholderTextColor="#999"
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry
+                                    />
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputAndroid]}
+                                        placeholder="Confirmar contraseña"
+                                        placeholderTextColor="#999"
+                                        value={confirmPassword}
+                                        onChangeText={setConfirmPassword}
+                                        secureTextEntry
+                                    />
+                                </View>
+
+                                <Button
+                                    title={isLoading ? 'Registrando...' : 'Registrarse'}
+                                    onPress={handleRegister}
+                                    disabled={isLoading}
+                                />
+
+                                <TouchableOpacity
+                                    style={styles.loginLink}
+                                    onPress={() => navigation.navigate('Login')}
+                                >
+                                    <Text style={[styles.loginText, styles.loginTextAndroid]}>
+                                        ¿Ya tienes cuenta? <Text style={styles.loginTextBold}>Inicia sesión</Text>
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </Animated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
-        </GradientBackground>
+        </LinearGradient>
     );
 };
 
 const styles = StyleSheet.create({
+    gradient: {
+        flex: 1,
+    },
     container: {
         flex: 1,
     },
@@ -153,79 +252,104 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
+        paddingTop: 60,
+        paddingBottom: 40,
+    },
+    content: {
+        flex: 1,
+        justifyContent: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 40,
+    },
+    logo: {
+        fontSize: 64,
+        marginBottom: 12,
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 4 },
+        textShadowRadius: 8,
     },
     title: {
-        fontSize: 36,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 8,
-    },
-    titleIOS: {
+        fontSize: 44,
+        fontWeight: '800',
         color: '#ffffff',
+        marginBottom: 8,
         textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 4 },
+        textShadowRadius: 12,
+        letterSpacing: 1,
+    },
+    subtitle: {
+        fontSize: 17,
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontWeight: '500',
+        textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
     },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-    },
-    subtitleIOS: {
-        color: '#ffffffcc',
-    },
     formContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    formContainerIOS: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        backdropFilter: 'blur(20px)',
+        borderRadius: 24,
+        overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.3)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 24,
+        elevation: 12,
     },
-    input: {
-        backgroundColor: '#f5f5f5',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-        fontSize: 16,
+    formContainerAndroid: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    },
+    formInner: {
+        padding: 28,
+    },
+    formTitle: {
+        fontSize: 26,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginBottom: 28,
+        textAlign: 'center',
+        letterSpacing: 0.5,
+    },
+    formTitleAndroid: {
         color: '#333',
     },
-    inputIOS: {
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    inputContainer: {
+        marginBottom: 14,
+    },
+    input: {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderRadius: 16,
+        padding: 16,
+        fontSize: 16,
+        color: '#ffffff',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.4)',
-        color: '#ffffff',
+        fontWeight: '500',
+    },
+    inputAndroid: {
+        backgroundColor: '#f8f9fa',
+        color: '#333',
+        borderColor: '#e0e0e0',
     },
     loginLink: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 16,
+        marginTop: 24,
+        alignItems: 'center',
+        paddingVertical: 8,
     },
     loginText: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    loginTextAndroid: {
         color: '#666',
-        fontSize: 14,
     },
-    loginTextIOS: {
-        color: '#ffffffcc',
-    },
-    loginButton: {
-        color: '#8b5cf6',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    loginButtonIOS: {
+    loginTextBold: {
+        fontWeight: '700',
         color: '#ffffff',
     },
 });
