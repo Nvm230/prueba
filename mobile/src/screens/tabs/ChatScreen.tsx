@@ -19,7 +19,7 @@ export const ChatScreen = ({ navigation }: any) => {
 
     const { data: chats, isLoading } = useQuery({
         queryKey: ['chats'],
-        queryFn: chatService.getChats,
+        queryFn: () => chatService.getConversations(),
     });
 
     const styles = createStyles(theme, isIOS);

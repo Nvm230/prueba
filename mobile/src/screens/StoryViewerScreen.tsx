@@ -9,8 +9,9 @@ import {
     Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { storyService, Story } from '../../services/stories';
-import { useTheme } from '../../contexts/ThemeContext';
+import { storyService, Story } from '../services/stories';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');

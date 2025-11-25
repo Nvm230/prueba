@@ -45,4 +45,9 @@ export const chatService = {
     async markAsRead(messageId: number): Promise<void> {
         await apiClient.put(`/messages/${messageId}/read`);
     },
+
+    // Alias for compatibility
+    getChats: function () {
+        return this.getConversations();
+    },
 };

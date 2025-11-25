@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { eventService, Event } from '../../services/events';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 export const EventsScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
@@ -19,7 +20,7 @@ export const EventsScreen = ({ navigation }: any) => {
 
     const { data: events, isLoading, refetch } = useQuery({
         queryKey: ['events'],
-        queryFn: eventService.getEvents,
+        queryFn: () => eventService.getAll(),
     });
 
     const styles = createStyles(theme, isIOS);
@@ -40,150 +41,123 @@ export const EventsScreen = ({ navigation }: any) => {
                 </View>
                 <View style={styles.eventInfo}>
                     <Text style={styles.eventTitle}>{item.title}</Text>
-                    <Text style={styles.eventCategory}>📍 {item.category}</Text>
-                    <Text style={styles.eventTime}>
-                        🕐 {new Date(item.startTime).toLocaleTimeString('es-ES', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        })}
-                    </Text>
+                    <Text style={styles.eventLocation}>📍 {item.location}</Text>
                 </View>
             </View>
         </TouchableOpacity>
     );
 
+    if (isLoading) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.loadingText}>Cargando eventos...</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
-            {/* Header */}
-            {isIOS ? (
-                <LinearGradient
-                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
-                    style={styles.header}
-                >
-                    <Text style={styles.headerTitle}>Eventos</Text>
-                    <Text style={styles.headerSubtitle}>Próximos eventos</Text>
-                </LinearGradient>
-            ) : (
-                <View style={styles.headerAndroid}>
-                    <Text style={styles.headerTitleAndroid}>Eventos</Text>
-                    <Text style={styles.headerSubtitleAndroid}>Próximos eventos</Text>
-                </View>
-            )}
+            <LinearGradient
+                colors={theme.colors.primaryGradient as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.header}
+            >
+                <Text style={styles.headerTitle}>Eventos</Text>
+            </LinearGradient>
 
             <FlatList
-                data={events}
+                data={events || []}
                 renderItem={renderEvent}
                 keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={styles.list}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={isLoading ? true : false}
-                        onRefresh={refetch}
-                    />
+                    <RefreshControl refreshing={isLoading} onRefresh={refetch} />
                 }
                 ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyIcon}>📅</Text>
-                        <Text style={styles.emptyText}>No hay eventos próximos</Text>
-                    </View>
+                    <EmptyState
+                        icon="📅"
+                        title="No hay eventos"
+                        description="No se encontraron eventos disponibles"
+                    />
                 }
             />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f5f5f5',
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    header: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-    },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#ffffff',
-    },
-    headerAndroid: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: '#8b5cf6',
-    },
-    headerTitleAndroid: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#ffffff',
-    },
-    listContent: {
-        padding: 16,
-    },
-    eventCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        marginBottom: 16,
-        overflow: 'hidden',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    eventCardIOS: {
-        borderRadius: 20,
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-    },
-    eventImage: {
-        width: '100%',
-        height: 180,
-        backgroundColor: '#e0e0e0',
-    },
-    eventContent: {
-        padding: 16,
-    },
-    eventTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-    },
-    eventTitleIOS: {
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    eventLocation: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 4,
-    },
-    eventTime: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 4,
-    },
-    eventCapacity: {
-        fontSize: 14,
-        color: '#8b5cf6',
-        fontWeight: '500',
-    },
-    textIOS: {
-        fontSize: 15,
-    },
-    empty: {
-        padding: 40,
-        alignItems: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#999',
-    },
-});
+const createStyles = (theme: any, isIOS: boolean) =>
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        header: {
+            paddingTop: isIOS ? 60 : 40,
+            paddingBottom: 20,
+            paddingHorizontal: 20,
+        },
+        headerTitle: {
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: '#ffffff',
+        },
+        list: {
+            padding: 20,
+        },
+        eventCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 3,
+        },
+        eventHeader: {
+            flexDirection: 'row',
+            gap: 16,
+        },
+        dateBox: {
+            width: 60,
+            height: 60,
+            borderRadius: 12,
+            backgroundColor: theme.colors.primary,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        dateDay: {
+            fontSize: 24,
+            fontWeight: 'bold',
+            color: '#ffffff',
+        },
+        dateMonth: {
+            fontSize: 12,
+            color: '#ffffff',
+            textTransform: 'uppercase',
+        },
+        eventInfo: {
+            flex: 1,
+            justifyContent: 'center',
+        },
+        eventTitle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: theme.colors.text,
+            marginBottom: 4,
+        },
+        eventLocation: {
+            fontSize: 14,
+            color: theme.colors.textSecondary,
+        },
+        loadingText: {
+            fontSize: 16,
+            color: theme.colors.textSecondary,
+            textAlign: 'center',
+            marginTop: 40,
+        },
+    });

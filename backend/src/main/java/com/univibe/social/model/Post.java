@@ -37,6 +37,9 @@ public class Post {
     )
     private Set<User> likedBy = new HashSet<>();
 
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<com.univibe.social.model.Comment> comments = new HashSet<>();
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 

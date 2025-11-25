@@ -12,10 +12,10 @@ import {
     ScrollView,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { storyService, CreateStoryRequest } from '../../services/stories';
-import { useTheme } from '../../contexts/ThemeContext';
+import { storyService, CreateStoryRequest } from '../services/stories';
+import { useTheme } from '../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../components/ui/Button';
 
 export const CreateStoryScreen = ({ navigation }: any) => {
     const { theme } = useTheme();

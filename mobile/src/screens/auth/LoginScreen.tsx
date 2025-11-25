@@ -1,295 +1,259 @@
+// Modern LoginScreen with Glassmorphism and Animations
 import React, { useState } from 'react';
 import {
     View,
     Text,
-    TextInput,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    TouchableOpacity,
-    ActivityIndicator,
+    Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMutation } from '@tanstack/react-query';
-import { showToast } from '../../utils/toast';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Card } from '../../components/ui/Card';
+import Animated, {
+    FadeInDown,
+    FadeInUp,
+} from 'react-native-reanimated';
 
 export const LoginScreen = ({ navigation }: any) => {
+    const { theme } = useTheme();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
-    const isIOS = Platform.OS === 'ios';
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({ email: '', password: '' });
 
-    const loginMutation = useMutation({
-        mutationFn: () => login(email, password),
-        onSuccess: () => {
-            showToast.success('¡Bienvenido!', 'Inicio de sesión exitoso');
-        },
-        onError: (error: any) => {
-            console.error('Login error:', error);
-            const message = error.message || 'Error al iniciar sesión';
-            showToast.error('Error', message);
-        },
-    });
+    const validateForm = () => {
+        let valid = true;
+        const newErrors = { email: '', password: '' };
 
-    const handleLogin = () => {
-        if (!email.trim() || !password.trim()) {
-            showToast.error('Error', 'Por favor completa todos los campos');
-            return;
+        if (!email.trim()) {
+            newErrors.email = 'El email es requerido';
+            valid = false;
+        } else if (!/\S+@\S+\.\S+/.test(email)) {
+            newErrors.email = 'Email inválido';
+            valid = false;
         }
 
-        if (!email.includes('@')) {
-            showToast.error('Error', 'Por favor ingresa un email válido');
-            return;
+        if (!password.trim()) {
+            newErrors.password = 'La contraseña es requerida';
+            valid = false;
+        } else if (password.length < 6) {
+            newErrors.password = 'Mínimo 6 caracteres';
+            valid = false;
         }
 
-        loginMutation.mutate();
+        setErrors(newErrors);
+        return valid;
     };
 
+    const handleLogin = async () => {
+        if (!validateForm()) return;
+
+        setLoading(true);
+        try {
+            await login(email.trim(), password);
+        } catch (error) {
+            console.error('Login error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const styles = createStyles(theme);
+
     return (
-        <KeyboardAvoidingView
-            behavior={isIOS ? 'padding' : 'height'}
-            style={styles.container}
-        >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <LinearGradient
-                    colors={['#5b21b6', '#6d28d9', '#7c3aed']}
-                    style={styles.gradient}
+        <View style={styles.container}>
+            {/* Animated Gradient Background */}
+            <LinearGradient
+                colors={[
+                    theme.colors.primaryGradient[0],
+                    theme.colors.primaryGradient[1],
+                    theme.colors.primaryGradient[2],
+                ] as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
+
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {isIOS ? (
-                        <BlurView intensity={20} tint="dark" style={styles.blurContainer}>
-                            <View style={styles.formContainer}>
-                                <Text style={styles.title}>Bienvenido</Text>
-                                <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+                    {/* Logo/Title Section */}
+                    <Animated.View
+                        entering={FadeInDown.duration(600).delay(100)}
+                        style={styles.header}
+                    >
+                        <Text style={styles.logo}>🎓</Text>
+                        <Text style={styles.title}>UniVibe</Text>
+                        <Text style={styles.subtitle}>Bienvenido de nuevo</Text>
+                    </Animated.View>
 
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Email"
-                                        placeholderTextColor="#9ca3af"
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        keyboardType="email-address"
-                                        autoCapitalize="none"
-                                        editable={!loginMutation.isPending}
-                                    />
-                                </View>
+                    {/* Login Form Card */}
+                    <Animated.View
+                        entering={FadeInUp.duration(600).delay(200)}
+                        style={styles.formContainer}
+                    >
+                        <Card variant="glass" elevated style={styles.card}>
+                            <Input
+                                label="Email"
+                                placeholder="tu@email.com"
+                                value={email}
+                                onChangeText={(text) => {
+                                    setEmail(text);
+                                    setErrors({ ...errors, email: '' });
+                                }}
+                                error={errors.email}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
 
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Contraseña"
-                                        placeholderTextColor="#9ca3af"
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry
-                                        editable={!loginMutation.isPending}
-                                    />
-                                </View>
+                            <Input
+                                label="Contraseña"
+                                placeholder="••••••••"
+                                value={password}
+                                onChangeText={(text) => {
+                                    setPassword(text);
+                                    setErrors({ ...errors, password: '' });
+                                }}
+                                error={errors.password}
+                                secureTextEntry
+                                autoCapitalize="none"
+                            />
 
-                                <TouchableOpacity
-                                    style={[
-                                        styles.button,
-                                        loginMutation.isPending && styles.buttonDisabled,
-                                    ]}
-                                    onPress={handleLogin}
-                                    disabled={loginMutation.isPending}
-                                >
-                                    {loginMutation.isPending ? (
-                                        <ActivityIndicator color="#ffffff" />
-                                    ) : (
-                                        <Text style={styles.buttonText}>Iniciar Sesión</Text>
-                                    )}
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={() => navigation.navigate('Register')}
-                                    disabled={loginMutation.isPending}
-                                >
-                                    <Text style={styles.registerText}>
-                                        ¿No tienes cuenta? Regístrate
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </BlurView>
-                    ) : (
-                        <View style={styles.formContainerAndroid}>
-                            <Text style={styles.titleAndroid}>Bienvenido</Text>
-                            <Text style={styles.subtitleAndroid}>Inicia sesión para continuar</Text>
-
-                            <View style={styles.inputContainerAndroid}>
-                                <TextInput
-                                    style={styles.inputAndroid}
-                                    placeholder="Email"
-                                    placeholderTextColor="#9ca3af"
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    editable={!loginMutation.isPending}
-                                />
-                            </View>
-
-                            <View style={styles.inputContainerAndroid}>
-                                <TextInput
-                                    style={styles.inputAndroid}
-                                    placeholder="Contraseña"
-                                    placeholderTextColor="#9ca3af"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry
-                                    editable={!loginMutation.isPending}
-                                />
-                            </View>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.buttonAndroid,
-                                    loginMutation.isPending && styles.buttonDisabled,
-                                ]}
-                                onPress={handleLogin}
-                                disabled={loginMutation.isPending}
-                            >
-                                {loginMutation.isPending ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <Text style={styles.buttonTextAndroid}>Iniciar Sesión</Text>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => navigation.navigate('Register')}
-                                disabled={loginMutation.isPending}
-                            >
-                                <Text style={styles.registerTextAndroid}>
-                                    ¿No tienes cuenta? Regístrate
+                            <Pressable style={styles.forgotPassword}>
+                                <Text style={styles.forgotPasswordText}>
+                                    ¿Olvidaste tu contraseña?
                                 </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                </LinearGradient>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                            </Pressable>
+
+                            <Button
+                                title={loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                                onPress={handleLogin}
+                                loading={loading}
+                                disabled={loading}
+                                size="large"
+                                style={styles.loginButton}
+                            />
+                        </Card>
+                    </Animated.View>
+
+                    {/* Register Link */}
+                    <Animated.View
+                        entering={FadeInUp.duration(600).delay(300)}
+                        style={styles.footer}
+                    >
+                        <Text style={styles.footerText}>¿No tienes cuenta? </Text>
+                        <Pressable onPress={() => navigation.navigate('Register')}>
+                            <Text style={styles.footerLink}>Regístrate</Text>
+                        </Pressable>
+                    </Animated.View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-    },
-    gradient: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    blurContainer: {
-        borderRadius: 24,
-        overflow: 'hidden',
-        width: '100%',
-        maxWidth: 400,
-    },
-    formContainer: {
-        padding: 32,
-    },
-    formContainerAndroid: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 24,
-        padding: 32,
-        width: '100%',
-        maxWidth: 400,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    titleAndroid: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#e5e7eb',
-        marginBottom: 32,
-        textAlign: 'center',
-    },
-    subtitleAndroid: {
-        fontSize: 16,
-        color: '#6b7280',
-        marginBottom: 32,
-        textAlign: 'center',
-    },
-    inputContainer: {
-        marginBottom: 16,
-    },
-    inputContainerAndroid: {
-        marginBottom: 16,
-    },
-    input: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#1f2937',
-    },
-    inputAndroid: {
-        backgroundColor: '#f9fafb',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#1f2937',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    button: {
-        backgroundColor: '#8b5cf6',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginTop: 8,
-        marginBottom: 16,
-    },
-    buttonAndroid: {
-        backgroundColor: '#8b5cf6',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginTop: 8,
-        marginBottom: 16,
-        elevation: 2,
-    },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    buttonText: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    buttonTextAndroid: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    registerText: {
-        color: '#e5e7eb',
-        fontSize: 14,
-        textAlign: 'center',
-    },
-    registerTextAndroid: {
-        color: '#6b7280',
-        fontSize: 14,
-        textAlign: 'center',
-    },
-});
+const createStyles = (theme: any) =>
+    StyleSheet.create({
+        container: {
+            flex: 1,
+        },
+        keyboardView: {
+            flex: 1,
+        },
+        scrollContent: {
+            flexGrow: 1,
+            paddingHorizontal: 24,
+            paddingTop: Platform.OS === 'ios' ? 80 : 60,
+            paddingBottom: 40,
+        },
+        header: {
+            alignItems: 'center',
+            marginBottom: 40,
+        },
+        logo: {
+            fontSize: 64,
+            marginBottom: 16,
+        },
+        title: {
+            fontSize: 36,
+            fontWeight: 'bold',
+            color: '#ffffff',
+            marginBottom: 8,
+            textShadowColor: 'rgba(0, 0, 0, 0.3)',
+            textShadowOffset: { width: 0, height: 2 },
+            textShadowRadius: 4,
+        },
+        subtitle: {
+            fontSize: 16,
+            color: 'rgba(255, 255, 255, 0.9)',
+        },
+        formContainer: {
+            marginBottom: 24,
+        },
+        card: {
+            padding: 24,
+        },
+        forgotPassword: {
+            alignSelf: 'flex-end',
+            marginBottom: 24,
+        },
+        forgotPasswordText: {
+            color: '#ffffff',
+            fontSize: 14,
+            fontWeight: '500',
+        },
+        loginButton: {
+            marginBottom: 24,
+        },
+        divider: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 24,
+        },
+        dividerLine: {
+            flex: 1,
+            height: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        },
+        dividerText: {
+            color: 'rgba(255, 255, 255, 0.7)',
+            paddingHorizontal: 16,
+            fontSize: 14,
+        },
+        socialButtons: {
+            flexDirection: 'row',
+            gap: 12,
+        },
+        socialButton: {
+            flex: 1,
+        },
+        footer: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        footerText: {
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: 14,
+        },
+        footerLink: {
+            color: '#ffffff',
+            fontSize: 14,
+            fontWeight: 'bold',
+            textDecorationLine: 'underline',
+        },
+    });

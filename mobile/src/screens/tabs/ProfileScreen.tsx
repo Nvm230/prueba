@@ -1,283 +1,331 @@
-import React from 'react';
+// Modern ProfileScreen with Stats and Tabs
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
+    Pressable,
     Image,
-    TouchableOpacity,
-    Platform,
-    Switch,
+    RefreshControl,
 } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Card } from '../../components/ui/Card';
+import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-export const ProfileScreen = () => {
+export const ProfileScreen = ({ navigation }: any) => {
+    const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
-    const { theme, themeMode, setThemeMode, toggleTheme } = useTheme();
-    const isIOS = Platform.OS === 'ios';
+    const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'events'>('posts');
+    const [refreshing, setRefreshing] = useState(false);
 
-    const handleLogout = async () => {
-        await logout();
+    const stats = {
+        posts: 24,
+        followers: 156,
+        following: 89,
+        events: 12,
     };
 
-    const styles = createStyles(theme, isIOS);
+    const onRefresh = async () => {
+        setRefreshing(true);
+        // Simulate refresh
+        setTimeout(() => setRefreshing(false), 1000);
+    };
+
+    const styles = createStyles(theme);
 
     return (
-        <ScrollView style={styles.container}>
-            {/* Header */}
-            {isIOS ? (
-                <LinearGradient
-                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed', '#a855f7']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.headerIOS}
-                >
-                    <Image
-                        source={{ uri: user?.profilePictureUrl || 'https://via.placeholder.com/100' }}
-                        style={styles.avatarLarge}
+        <View style={styles.container}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
+                {/* Cover Image with Gradient */}
+                <View style={styles.coverContainer}>
+                    <LinearGradient
+                        colors={theme.colors.primaryGradient as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.cover}
                     />
-                    <Text style={styles.nameIOS}>{user?.name}</Text>
-                    <Text style={styles.emailIOS}>{user?.email}</Text>
-                    {user?.points !== undefined && (
-                        <View style={styles.pointsBadge}>
-                            <Text style={styles.pointsText}>⭐ {user.points} puntos</Text>
+
+                    {/* Settings Button */}
+                    <Pressable
+                        style={styles.settingsButton}
+                        onPress={() => navigation.navigate('Settings')}
+                    >
+                        <Text style={styles.settingsIcon}>⚙️</Text>
+                    </Pressable>
+                </View>
+
+                {/* Profile Info */}
+                <Animated.View entering={FadeInDown.delay(100)} style={styles.profileInfo}>
+                    <View style={styles.avatarContainer}>
+                        <LinearGradient
+                            colors={theme.colors.primaryGradient as any}
+                            style={styles.avatarRing}
+                        >
+                            <Avatar
+                                uri={user?.profilePictureUrl}
+                                name={user?.name || 'Usuario'}
+                                size={100}
+                            />
+                        </LinearGradient>
+                    </View>
+
+                    <Text style={styles.name}>{user?.name || 'Usuario'}</Text>
+                    <Text style={styles.email}>{user?.email || ''}</Text>
+
+                    {user?.bio && (
+                        <Text style={styles.bio}>{user.bio}</Text>
+                    )}
+
+                    <View style={styles.actions}>
+                        <Button
+                            title="Editar Perfil"
+                            onPress={() => navigation.navigate('EditProfile')}
+                            variant="primary"
+                            size="medium"
+                            style={styles.editButton}
+                        />
+                        <Button
+                            title={theme.isDark ? '☀️' : '🌙'}
+                            onPress={toggleTheme}
+                            variant="outline"
+                            size="medium"
+                            style={styles.themeButton}
+                        />
+                    </View>
+                </Animated.View>
+
+                {/* Stats Cards */}
+                <Animated.View entering={FadeInDown.delay(200)} style={styles.statsContainer}>
+                    <Card variant="premium" style={styles.statCard}>
+                        <Text style={styles.statNumber}>{stats.posts}</Text>
+                        <Text style={styles.statLabel}>Posts</Text>
+                    </Card>
+                    <Card variant="premium" style={styles.statCard}>
+                        <Text style={styles.statNumber}>{stats.followers}</Text>
+                        <Text style={styles.statLabel}>Seguidores</Text>
+                    </Card>
+                    <Card variant="premium" style={styles.statCard}>
+                        <Text style={styles.statNumber}>{stats.following}</Text>
+                        <Text style={styles.statLabel}>Siguiendo</Text>
+                    </Card>
+                    <Card variant="premium" style={styles.statCard}>
+                        <Text style={styles.statNumber}>{stats.events}</Text>
+                        <Text style={styles.statLabel}>Eventos</Text>
+                    </Card>
+                </Animated.View>
+
+                {/* Tabs */}
+                <Animated.View entering={FadeInDown.delay(300)} style={styles.tabs}>
+                    <Pressable
+                        style={[styles.tab, activeTab === 'posts' && styles.tabActive]}
+                        onPress={() => setActiveTab('posts')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'posts' && styles.tabTextActive]}>
+                            Posts
+                        </Text>
+                    </Pressable>
+                    <Pressable
+                        style={[styles.tab, activeTab === 'media' && styles.tabActive]}
+                        onPress={() => setActiveTab('media')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'media' && styles.tabTextActive]}>
+                            Media
+                        </Text>
+                    </Pressable>
+                    <Pressable
+                        style={[styles.tab, activeTab === 'events' && styles.tabActive]}
+                        onPress={() => setActiveTab('events')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>
+                            Eventos
+                        </Text>
+                    </Pressable>
+                </Animated.View>
+
+                {/* Content */}
+                <View style={styles.content}>
+                    {activeTab === 'posts' && (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyIcon}>📝</Text>
+                            <Text style={styles.emptyText}>No hay posts aún</Text>
+                            <Button
+                                title="Crear Post"
+                                onPress={() => navigation.navigate('CreatePost')}
+                                variant="primary"
+                                style={styles.emptyButton}
+                            />
                         </View>
                     )}
-                </LinearGradient>
-            ) : (
-                <View style={styles.headerAndroid}>
-                    <Image
-                        source={{ uri: user?.profilePictureUrl || 'https://via.placeholder.com/100' }}
-                        style={styles.avatarLarge}
-                    />
-                    <Text style={styles.nameAndroid}>{user?.name}</Text>
-                    <Text style={styles.emailAndroid}>{user?.email}</Text>
-                    {user?.points !== undefined && (
-                        <View style={styles.pointsBadge}>
-                            <Text style={styles.pointsText}>⭐ {user.points} puntos</Text>
+                    {activeTab === 'media' && (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyIcon}>🖼️</Text>
+                            <Text style={styles.emptyText}>No hay media aún</Text>
+                        </View>
+                    )}
+                    {activeTab === 'events' && (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyIcon}>📅</Text>
+                            <Text style={styles.emptyText}>No hay eventos aún</Text>
+                            <Button
+                                title="Ver Eventos"
+                                onPress={() => navigation.navigate('Events')}
+                                variant="primary"
+                                style={styles.emptyButton}
+                            />
                         </View>
                     )}
                 </View>
-            )}
 
-            {/* Stats */}
-            <View style={[styles.statsContainer, isIOS && styles.statsContainerIOS]}>
-                <View style={styles.statItem}>
-                    <Text style={[styles.statNumber, isIOS && styles.statNumberIOS]}>12</Text>
-                    <Text style={styles.statLabel}>Eventos</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={[styles.statNumber, isIOS && styles.statNumberIOS]}>45</Text>
-                    <Text style={styles.statLabel}>Amigos</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={[styles.statNumber, isIOS && styles.statNumberIOS]}>28</Text>
-                    <Text style={styles.statLabel}>Posts</Text>
-                </View>
-            </View>
-
-            {/* Menu Options */}
-            <View style={[styles.menuContainer, isIOS && styles.menuContainerIOS]}>
-                {/* Dark Mode Toggle */}
-                <View style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>{theme.isDark ? '🌙' : '☀️'}</Text>
-                    <Text style={styles.menuText}>Modo Oscuro</Text>
-                    <Switch
-                        value={theme.isDark}
-                        onValueChange={toggleTheme}
-                        trackColor={{ false: '#cbd5e1', true: theme.colors.primary }}
-                        thumbColor={theme.isDark ? '#f8fafc' : '#ffffff'}
-                    />
-                </View>
-
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>👤</Text>
-                    <Text style={styles.menuText}>Editar Perfil</Text>
-                    <Text style={styles.menuArrow}>›</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>📅</Text>
-                    <Text style={styles.menuText}>Mis Eventos</Text>
-                    <Text style={styles.menuArrow}>›</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>👥</Text>
-                    <Text style={styles.menuText}>Mis Grupos</Text>
-                    <Text style={styles.menuArrow}>›</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS]}>
-                    <Text style={styles.menuIcon}>👥</Text>
-                    <Text style={styles.menuText}>Amigos</Text>
-                    <Text style={styles.menuArrow}>›</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, isIOS && styles.menuItemIOS, styles.menuItemLast]}>
-                    <Text style={styles.menuIcon}>⚙️</Text>
-                    <Text style={styles.menuText}>Configuración</Text>
-                    <Text style={styles.menuArrow}>›</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Logout Button */}
-            <View style={styles.logoutContainer}>
-                <Button
-                    title="Cerrar Sesión"
-                    onPress={handleLogout}
-                    variant="secondary"
-                />
-            </View>
-        </ScrollView>
+                <View style={styles.bottomSpacing} />
+            </ScrollView>
+        </View>
     );
 };
 
-const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    headerIOS: {
-        paddingTop: 80,
-        paddingBottom: 40,
-        alignItems: 'center',
-    },
-    headerAndroid: {
-        paddingTop: 80,
-        paddingBottom: 40,
-        alignItems: 'center',
-        backgroundColor: theme.colors.primary,
-    },
-    avatarLarge: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 4,
-        borderColor: '#ffffff',
-        marginBottom: 16,
-    },
-    nameIOS: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    emailIOS: {
-        fontSize: 16,
-        color: '#ffffffcc',
-    },
-    nameAndroid: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    emailAndroid: {
-        fontSize: 14,
-        color: '#ffffffdd',
-    },
-    pointsBadge: {
-        marginTop: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.4)',
-    },
-    pointsText: {
-        color: '#ffffff',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        backgroundColor: theme.colors.card,
-        marginHorizontal: 16,
-        marginTop: -20,
-        borderRadius: 12,
-        padding: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: theme.isDark ? 0.3 : 0.1,
-        shadowRadius: 4,
-        borderWidth: theme.isDark ? 1 : 0,
-        borderColor: theme.colors.border,
-    },
-    statsContainerIOS: {
-        borderRadius: 20,
-        shadowOpacity: theme.isDark ? 0.4 : 0.15,
-        shadowRadius: 8,
-    },
-    statItem: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    statNumber: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: theme.colors.primary,
-        marginBottom: 4,
-    },
-    statNumberIOS: {
-        fontSize: 28,
-    },
-    statLabel: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-    },
-    statDivider: {
-        width: 1,
-        backgroundColor: theme.colors.border,
-    },
-    menuContainer: {
-        marginTop: 24,
-        marginHorizontal: 16,
-        backgroundColor: theme.colors.card,
-        borderRadius: 12,
-        overflow: 'hidden',
-        borderWidth: theme.isDark ? 1 : 0,
-        borderColor: theme.colors.border,
-    },
-    menuContainerIOS: {
-        borderRadius: 20,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-    },
-    menuItemIOS: {
-        padding: 18,
-    },
-    menuItemLast: {
-        borderBottomWidth: 0,
-    },
-    menuIcon: {
-        fontSize: 24,
-        marginRight: 16,
-    },
-    menuText: {
-        flex: 1,
-        fontSize: 16,
-        color: theme.colors.text,
-    },
-    menuArrow: {
-        fontSize: 24,
-        color: theme.colors.textSecondary,
-    },
-    logoutContainer: {
-        padding: 16,
-        marginTop: 24,
-        marginBottom: 40,
-    },
-});
+const createStyles = (theme: any) =>
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        coverContainer: {
+            position: 'relative',
+        },
+        cover: {
+            height: 200,
+        },
+        settingsButton: {
+            position: 'absolute',
+            top: 60,
+            right: 20,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        settingsIcon: {
+            fontSize: 24,
+        },
+        profileInfo: {
+            alignItems: 'center',
+            marginTop: -50,
+            paddingHorizontal: 20,
+        },
+        avatarContainer: {
+            marginBottom: 16,
+        },
+        avatarRing: {
+            padding: 4,
+            borderRadius: 56,
+        },
+        name: {
+            fontSize: 24,
+            fontWeight: 'bold',
+            color: theme.colors.text,
+            marginBottom: 4,
+        },
+        email: {
+            fontSize: 14,
+            color: theme.colors.textSecondary,
+            marginBottom: 8,
+        },
+        bio: {
+            fontSize: 14,
+            color: theme.colors.text,
+            textAlign: 'center',
+            marginBottom: 16,
+            paddingHorizontal: 20,
+        },
+        actions: {
+            flexDirection: 'row',
+            gap: 12,
+            marginTop: 8,
+        },
+        editButton: {
+            flex: 1,
+        },
+        themeButton: {
+            width: 50,
+        },
+        statsContainer: {
+            flexDirection: 'row',
+            paddingHorizontal: 20,
+            marginTop: 24,
+            gap: 12,
+        },
+        statCard: {
+            flex: 1,
+            alignItems: 'center',
+            padding: 16,
+        },
+        statNumber: {
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: theme.colors.text,
+            marginBottom: 4,
+        },
+        statLabel: {
+            fontSize: 12,
+            color: theme.colors.textSecondary,
+        },
+        tabs: {
+            flexDirection: 'row',
+            marginTop: 24,
+            marginHorizontal: 20,
+            backgroundColor: theme.colors.surfaceVariant,
+            borderRadius: 12,
+            padding: 4,
+        },
+        tab: {
+            flex: 1,
+            paddingVertical: 12,
+            alignItems: 'center',
+            borderRadius: 8,
+        },
+        tabActive: {
+            backgroundColor: theme.colors.primary,
+        },
+        tabText: {
+            fontSize: 14,
+            fontWeight: '600',
+            color: theme.colors.textSecondary,
+        },
+        tabTextActive: {
+            color: '#ffffff',
+        },
+        content: {
+            marginTop: 24,
+            paddingHorizontal: 20,
+        },
+        emptyState: {
+            alignItems: 'center',
+            paddingVertical: 60,
+        },
+        emptyIcon: {
+            fontSize: 64,
+            marginBottom: 16,
+        },
+        emptyText: {
+            fontSize: 16,
+            color: theme.colors.textSecondary,
+            marginBottom: 24,
+        },
+        emptyButton: {
+            minWidth: 150,
+        },
+        bottomSpacing: {
+            height: 40,
+        },
+    });

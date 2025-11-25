@@ -12,7 +12,8 @@ public class Comment {
     private Long id;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "post_id")
+    @JoinColumn(name = "post_id", foreignKey = @ForeignKey(name = "fkaawaqxjs3br8dw5v90w7uu514"))
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Post post;
 
     @ManyToOne(optional = false)

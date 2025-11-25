@@ -21,6 +21,9 @@ import { CreateGroupScreen } from './src/screens/CreateGroupScreen';
 import { CreateStoryScreen } from './src/screens/CreateStoryScreen';
 import { CreatePostScreen } from './src/screens/CreatePostScreen';
 import { StoryViewerScreen } from './src/screens/StoryViewerScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { StoriesScreen } from './src/screens/tabs/StoriesScreen';
+import { PostDetailScreen } from './src/screens/posts/PostDetailScreen';
 import { ToastProvider } from './src/utils/toast';
 import { View, Text, ActivityIndicator, Platform } from 'react-native';
 
@@ -189,6 +192,30 @@ function Navigation() {
               options={{
                 headerShown: false,
                 presentation: 'fullScreenModal',
+              }}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+              options={{
+                headerShown: true,
+                title: 'Notificaciones',
+              }}
+            />
+            <Stack.Screen
+              name="PostDetail"
+              component={PostDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Publicación',
+              }}
+            />
+            <Stack.Screen
+              name="Stories"
+              component={StoriesScreen}
+              options={{
+                headerShown: true,
+                title: 'Stories',
               }}
             />
           </>
