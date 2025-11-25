@@ -1,3 +1,4 @@
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '@/components/navigation/Breadcrumbs';
@@ -8,7 +9,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/contexts/ToastContext';
 import { getSpotifyTrack, SpotifyTrack } from '@/services/spotifyService';
 import { PlusIcon, XMarkIcon, TrashIcon, HeartIcon, PlayIcon, PauseIcon, ChatBubbleLeftIcon, MusicalNoteIcon } from '@heroicons/react/24/outline';
-import { useState, useRef, useEffect } from 'react';
 import Avatar from '@/components/display/Avatar';
 import { formatDateTime } from '@/utils/formatters';
 import PaginationControls from '@/components/data/PaginationControls';
