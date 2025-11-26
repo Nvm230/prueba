@@ -96,11 +96,11 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
       lastOtherUserIdRef.current = otherUserId;
       hasUpdatedRef.current = false;
     }
-    
+
     // Marcar notificaciones como leídas cuando se carga la conversación (incluso si no hay mensajes)
     if (!hasUpdatedRef.current && savedMessages !== undefined && user) {
       hasUpdatedRef.current = true;
-      
+
       // Llamar explícitamente al endpoint para marcar la conversación como leída
       markConversationAsRead(otherUserId)
         .then((result) => {
@@ -112,7 +112,7 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
         .catch((error) => {
           console.error('[PrivateChat] Error marking conversation as read:', error);
         });
-      
+
       // Marcar notificaciones de mensajes de este usuario como leídas
       markMessageNotificationsAsRead(otherUserName)
         .then(() => {
@@ -179,7 +179,7 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
           (message.sender.id === user.id && message.receiver.id === otherUserId)
         ) {
           upsertMessage(message);
-          
+
           // Si es un mensaje recibido (no enviado por mí), actualizar contador de mensajes sin leer
           if (message.receiver.id === user.id && message.sender.id === otherUserId) {
             // Invalidar el contador y refrescar inmediatamente las conversaciones
@@ -339,9 +339,8 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
       } else if (message.fileUrl) {
         const dataUrl = message.fileUrl.startsWith('data:')
           ? message.fileUrl
-          : `data:${message.fileType || 'application/octet-stream'};base64,${
-              message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl
-            }`;
+          : `data:${message.fileType || 'application/octet-stream'};base64,${message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl
+          }`;
         const response = await fetch(dataUrl);
         blob = await response.blob();
       }
@@ -503,286 +502,282 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
   return (
     <>
       <div className="flex flex-col h-[600px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div className="relative">
-          <Avatar
-            user={{
-              name: otherUserName,
-              profilePictureUrl: otherUserProfilePicture
-            }}
-            size="md"
-          />
-          <span
-            className={`absolute bottom-0 right-0 h-3 w-3 border-2 border-white dark:border-slate-900 rounded-full ${
-              isOtherUserOnline ? 'bg-success-500' : 'bg-slate-400'
-            }`}
-          />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-slate-900 dark:text-white">{otherUserName}</h3>
-        </div>
-        <button
-          type="button"
-          onClick={handleJoinCall}
-          className="inline-flex items-center gap-2 rounded-full border border-primary-400 px-4 py-2 text-sm font-semibold text-primary-100 hover:bg-primary-500/20 disabled:opacity-60"
-          disabled={joiningCall}
-        >
-          <VideoCameraIcon className="h-4 w-4" />
-          {joiningCall ? 'Conectando...' : activeCall ? 'Unirse a la llamada' : 'Videollamada'}
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900/50">
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
-            <p>No hay mensajes aún. ¡Comienza la conversación!</p>
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const isOwn = msg.sender.id === user?.id;
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
-              >
-                {!isOwn && (
-                  <Avatar
-                    user={{
-                      name: msg.sender.name,
-                      profilePictureUrl: msg.sender.profilePictureUrl
-                    }}
-                    size="sm"
-                  />
-                )}
-                <div
-                  className={`flex flex-col gap-1 max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}
-                >
-                  <div
-                    className={`rounded-2xl ${
-                      (msg.stickerId || msg.stickerPreview)
-                        ? 'px-1 py-1' // Stickers: padding mínimo
-                        : 'px-4 py-2' // Mensajes normales: padding normal
-                    } ${
-                      isOwn
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
-                    }`}
-                  >
-                    {(msg.fileUrl || msg.filePreview || msg.stickerPreview || msg.stickerId) && (() => {
-                      const imageSrc = getImageSource(msg);
-                      if (!imageSrc) {
-                        // Si no hay fuente válida, mostrar un placeholder o el fileUrl como fallback
-                        if (msg.fileUrl && msg.fileUrl.startsWith('/api/files/')) {
-                          return (
-                            <div className="mb-2">
-                              <img
-                                src={msg.fileUrl}
-                                alt={msg.fileName || 'Imagen'}
-                                className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                onError={(e) => {
-                                  console.error('Error loading image from API:', msg.fileUrl);
-                                  const img = e.target as HTMLImageElement;
-                                  img.style.display = 'none';
-                                }}
-                              />
-                            </div>
-                          );
-                        }
-                        return null;
-                      }
-                      return (
-                        <div className="mb-2">
-                          {(msg.fileType?.startsWith('image/') || msg.stickerId || msg.stickerPreview) ? (
-                            <div className={`relative group ${msg.stickerId || msg.stickerPreview ? 'inline-block' : ''}`}>
-                              <img
-                                src={imageSrc}
-                                alt={msg.fileName || 'Imagen'}
-                                className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${
-                                  msg.stickerId || msg.stickerPreview
-                                    ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
-                                    : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
-                                }`}
-                                onError={(e) => {
-                                  console.error('Error loading image:', {
-                                    fileUrl: msg.fileUrl?.substring(0, 100),
-                                    fileType: msg.fileType,
-                                    fileName: msg.fileName,
-                                    stickerPreview: msg.stickerPreview ? `${msg.stickerPreview.substring(0, 20)}...` : null,
-                                    filePreview: msg.filePreview ? `${msg.filePreview.substring(0, 20)}...` : null
-                                  });
-                                  const img = e.target as HTMLImageElement;
-                                  // No intentar cargar desde /api/files/ si ya tenemos filePreview (evitar 401)
-                                  // Solo ocultar la imagen si falla
-                                  img.style.display = 'none';
-                                }}
-                              onClick={() => {
-                                const imgSrc = getImageSource(msg);
-                                const newWindow = window.open();
-                                if (newWindow && imgSrc) {
-                                  newWindow.document.write(`<img src="${imgSrc}" style="max-width: 100%; height: auto;" />`);
-                                }
-                              }}
-                            />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                downloadFile(msg);
-                              }}
-                              className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Descargar imagen"
-                            >
-                              <ArrowDownTrayIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : msg.fileType === 'application/pdf' ? (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-700">
-                            <DocumentIcon className="h-8 w-8 text-red-500" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{msg.fileName || 'Documento PDF'}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">PDF</p>
-                            </div>
-                            <button
-                              onClick={() => downloadFile(msg)}
-                              className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                              title="Descargar PDF"
-                            >
-                              <ArrowDownTrayIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
-                            {getFileIcon(msg.fileType)}
-                            <span className="text-sm flex-1">{msg.fileName || 'Archivo'}</span>
-                            <button
-                              onClick={() => downloadFile(msg)}
-                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-                              title="Descargar archivo"
-                            >
-                              <ArrowDownTrayIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
-                        </div>
-                      );
-                    })()}
-                    {msg.content && msg.content !== '[Sticker]' && !msg.stickerId && (
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                    )}
-                    <span className="text-xs opacity-70 mt-1">
-                      {format(new Date(msg.createdAt), 'HH:mm')}
-                    </span>
-                  </div>
-                  <MessageReactions
-                    reactions={msg.reactions}
-                    currentUserId={user?.id}
-                    onReact={(emoji) => handleReaction(msg.id, emoji)}
-                  />
-                  <div className={`relative mt-1 ${isOwn ? 'self-end' : 'self-start'}`}>
-                    <button
-                      type="button"
-                      onClick={() => setReactionTarget((prev) => (prev === msg.id ? null : msg.id))}
-                      className="rounded-full p-1.5 text-white/80 hover:bg-white/20"
-                      disabled={!user}
-                    >
-                      <FaceSmileIcon className="h-4 w-4" />
-                    </button>
-                    {reactionTarget === msg.id && (
-                      <ReactionPicker onSelect={(emoji) => handleReaction(msg.id, emoji)} onClose={() => setReactionTarget(null)} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        {selectedFile && (
-          <div className="mb-2 flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
-            {selectedFile.preview ? (
-              <img src={selectedFile.preview} alt="Preview" className="h-12 w-12 rounded object-cover" />
-            ) : (
-              <div className="h-12 w-12 rounded bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
-                {getFileIcon(selectedFile.file.type)}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                {selectedFile.file.name}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {(selectedFile.file.size / 1024).toFixed(1)} KB
-              </p>
-            </div>
-            <button
-              onClick={handleRemoveFile}
-              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-            >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <div className="flex gap-1">
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileSelect}
-              className="hidden"
-              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+          <div className="relative">
+            <Avatar
+              user={{
+                name: otherUserName,
+                profilePictureUrl: otherUserProfilePicture
+              }}
+              size="md"
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title="Seleccionar archivo"
-            >
-              <PaperClipIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-            </button>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              onChange={handleFileSelect}
-              className="hidden"
-              accept="image/*"
-              capture="environment"
+            <span
+              className={`absolute bottom-0 right-0 h-3 w-3 border-2 border-white dark:border-slate-900 rounded-full ${isOtherUserOnline ? 'bg-success-500' : 'bg-slate-400'
+                }`}
             />
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="p-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title="Tomar foto"
-            >
-              <CameraIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-            </button>
-            <StickerPicker onSelect={handleStickerSelect} />
           </div>
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-            placeholder="Escribe un mensaje..."
-            className="input-field flex-1"
-            disabled={!isConnected}
-          />
+          <div className="flex-1">
+            <h3 className="font-semibold text-slate-900 dark:text-white">{otherUserName}</h3>
+          </div>
           <button
-            onClick={handleSendMessage}
-            disabled={!isConnected || (!messageInput.trim() && !selectedFile)}
-            className="btn-primary"
+            type="button"
+            onClick={handleJoinCall}
+            className="inline-flex items-center gap-2 rounded-full border border-primary-400 px-4 py-2 text-sm font-semibold text-slate-900 dark:text-primary-100 hover:bg-primary-500/20 disabled:opacity-60"
+            disabled={joiningCall}
           >
-            Enviar
+            <VideoCameraIcon className="h-4 w-4" />
+            {joiningCall ? 'Conectando...' : activeCall ? 'Unirse a la llamada' : 'Videollamada'}
           </button>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-          Solo imágenes y PDFs (máx. {MAX_FILE_SIZE_MB}MB)
-        </p>
-      </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900/50">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
+              <p>No hay mensajes aún. ¡Comienza la conversación!</p>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isOwn = msg.sender.id === user?.id;
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  {!isOwn && (
+                    <Avatar
+                      user={{
+                        name: msg.sender.name,
+                        profilePictureUrl: msg.sender.profilePictureUrl
+                      }}
+                      size="sm"
+                    />
+                  )}
+                  <div
+                    className={`flex flex-col gap-1 max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}
+                  >
+                    <div
+                      className={`rounded-2xl ${(msg.stickerId || msg.stickerPreview)
+                          ? 'px-1 py-1' // Stickers: padding mínimo
+                          : 'px-4 py-2' // Mensajes normales: padding normal
+                        } ${isOwn
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
+                        }`}
+                    >
+                      {(msg.fileUrl || msg.filePreview || msg.stickerPreview || msg.stickerId) && (() => {
+                        const imageSrc = getImageSource(msg);
+                        if (!imageSrc) {
+                          // Si no hay fuente válida, mostrar un placeholder o el fileUrl como fallback
+                          if (msg.fileUrl && msg.fileUrl.startsWith('/api/files/')) {
+                            return (
+                              <div className="mb-2">
+                                <img
+                                  src={msg.fileUrl}
+                                  alt={msg.fileName || 'Imagen'}
+                                  className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                  onError={(e) => {
+                                    console.error('Error loading image from API:', msg.fileUrl);
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
+                        return (
+                          <div className="mb-2">
+                            {(msg.fileType?.startsWith('image/') || msg.stickerId || msg.stickerPreview) ? (
+                              <div className={`relative group ${msg.stickerId || msg.stickerPreview ? 'inline-block' : ''}`}>
+                                <img
+                                  src={imageSrc}
+                                  alt={msg.fileName || 'Imagen'}
+                                  className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${msg.stickerId || msg.stickerPreview
+                                      ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
+                                      : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
+                                    }`}
+                                  onError={(e) => {
+                                    console.error('Error loading image:', {
+                                      fileUrl: msg.fileUrl?.substring(0, 100),
+                                      fileType: msg.fileType,
+                                      fileName: msg.fileName,
+                                      stickerPreview: msg.stickerPreview ? `${msg.stickerPreview.substring(0, 20)}...` : null,
+                                      filePreview: msg.filePreview ? `${msg.filePreview.substring(0, 20)}...` : null
+                                    });
+                                    const img = e.target as HTMLImageElement;
+                                    // No intentar cargar desde /api/files/ si ya tenemos filePreview (evitar 401)
+                                    // Solo ocultar la imagen si falla
+                                    img.style.display = 'none';
+                                  }}
+                                  onClick={() => {
+                                    const imgSrc = getImageSource(msg);
+                                    const newWindow = window.open();
+                                    if (newWindow && imgSrc) {
+                                      newWindow.document.write(`<img src="${imgSrc}" style="max-width: 100%; height: auto;" />`);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadFile(msg);
+                                  }}
+                                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Descargar imagen"
+                                >
+                                  <ArrowDownTrayIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : msg.fileType === 'application/pdf' ? (
+                              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-700">
+                                <DocumentIcon className="h-8 w-8 text-red-500" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{msg.fileName || 'Documento PDF'}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">PDF</p>
+                                </div>
+                                <button
+                                  onClick={() => downloadFile(msg)}
+                                  className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                  title="Descargar PDF"
+                                >
+                                  <ArrowDownTrayIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
+                                {getFileIcon(msg.fileType)}
+                                <span className="text-sm flex-1">{msg.fileName || 'Archivo'}</span>
+                                <button
+                                  onClick={() => downloadFile(msg)}
+                                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                                  title="Descargar archivo"
+                                >
+                                  <ArrowDownTrayIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {msg.content && msg.content !== '[Sticker]' && !msg.stickerId && (
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                      )}
+                      <span className="text-xs opacity-70 mt-1">
+                        {format(new Date(msg.createdAt), 'HH:mm')}
+                      </span>
+                    </div>
+                    <MessageReactions
+                      reactions={msg.reactions}
+                      currentUserId={user?.id}
+                      onReact={(emoji) => handleReaction(msg.id, emoji)}
+                    />
+                    <div className={`relative mt-1 ${isOwn ? 'self-end' : 'self-start'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setReactionTarget((prev) => (prev === msg.id ? null : msg.id))}
+                        className="rounded-full p-1.5 text-white/80 hover:bg-white/20"
+                        disabled={!user}
+                      >
+                        <FaceSmileIcon className="h-4 w-4" />
+                      </button>
+                      {reactionTarget === msg.id && (
+                        <ReactionPicker onSelect={(emoji) => handleReaction(msg.id, emoji)} onClose={() => setReactionTarget(null)} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          {selectedFile && (
+            <div className="mb-2 flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
+              {selectedFile.preview ? (
+                <img src={selectedFile.preview} alt="Preview" className="h-12 w-12 rounded object-cover" />
+              ) : (
+                <div className="h-12 w-12 rounded bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                  {getFileIcon(selectedFile.file.type)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                  {selectedFile.file.name}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {(selectedFile.file.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <button
+                onClick={handleRemoveFile}
+                className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <div className="flex gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                title="Seleccionar archivo"
+              >
+                <PaperClipIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              </button>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*"
+                capture="environment"
+              />
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="p-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                title="Tomar foto"
+              >
+                <CameraIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              </button>
+              <StickerPicker onSelect={handleStickerSelect} />
+            </div>
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              placeholder="Escribe un mensaje..."
+              className="input-field flex-1"
+              disabled={!isConnected}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!isConnected || (!messageInput.trim() && !selectedFile)}
+              className="btn-primary"
+            >
+              Enviar
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            Solo imágenes y PDFs (máx. {MAX_FILE_SIZE_MB}MB)
+          </p>
+        </div>
       </div>
       {currentCall && (
         <CallOverlay
