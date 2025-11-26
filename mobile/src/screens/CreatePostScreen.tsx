@@ -14,13 +14,11 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postService, CreatePostRequest } from '../services/posts';
 import { useTheme } from '../contexts/ThemeContext';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../components/ui/Button';
 
 export const CreatePostScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
     const queryClient = useQueryClient();
-    const isIOS = Platform.OS === 'ios';
 
     const [content, setContent] = useState('');
     const [mediaUrl, setMediaUrl] = useState('');
@@ -53,7 +51,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
         });
     };
 
-    const styles = createStyles(theme, isIOS);
+    const styles = createStyles(theme);
 
     return (
         <KeyboardAvoidingView
@@ -61,21 +59,11 @@ export const CreatePostScreen = ({ navigation }: any) => {
             style={styles.container}
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Header */}
-                {isIOS ? (
-                    <LinearGradient
-                        colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
-                        style={styles.header}
-                    >
-                        <Text style={styles.headerTitle}>Nueva Publicación</Text>
-                        <Text style={styles.headerSubtitle}>Comparte con la comunidad</Text>
-                    </LinearGradient>
-                ) : (
-                    <View style={styles.headerAndroid}>
-                        <Text style={styles.headerTitleAndroid}>Nueva Publicación</Text>
-                        <Text style={styles.headerSubtitleAndroid}>Comparte con la comunidad</Text>
-                    </View>
-                )}
+                {/* Simple Header */}
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Nueva Publicación</Text>
+                    <Text style={styles.headerSubtitle}>Comparte con la comunidad</Text>
+                </View>
 
                 {/* Form */}
                 <View style={styles.form}>
@@ -192,7 +180,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
     );
 };
 
-const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -201,33 +189,18 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
         flexGrow: 1,
     },
     header: {
-        paddingTop: 80,
-        paddingBottom: 32,
-        paddingHorizontal: 20,
-    },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: '#ffffffcc',
-    },
-    headerAndroid: {
-        paddingTop: 80,
+        paddingTop: 60,
         paddingBottom: 32,
         paddingHorizontal: 20,
         backgroundColor: theme.colors.primary,
     },
-    headerTitleAndroid: {
+    headerTitle: {
         fontSize: 28,
         fontWeight: 'bold',
         color: '#ffffff',
         marginBottom: 4,
     },
-    headerSubtitleAndroid: {
+    headerSubtitle: {
         fontSize: 14,
         color: '#ffffffdd',
     },
@@ -299,7 +272,7 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     previewImage: {
         width: '100%',
         height: 250,
-        borderRadius: 16,
+        borderRadius: 12,
         backgroundColor: theme.colors.surfaceVariant,
     },
     buttonContainer: {

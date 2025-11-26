@@ -8,21 +8,22 @@ import {
     Image,
     Platform,
     RefreshControl,
+    ActivityIndicator,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postService, Post } from '../../services/posts';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
+import { MusicPlayer } from '../../components/features/MusicPlayer';
+import { getAbsoluteUrl } from '../../utils/url';
 
 export const SocialScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const isIOS = Platform.OS === 'ios';
     const [page, setPage] = useState(0);
 
-    const { data: postsData, isLoading, refetch } = useQuery({
+    const { data: postsData, isLoading, error, refetch } = useQuery({
         queryKey: ['posts', page],
         queryFn: ({ signal }) => postService.getAll({ page, size: 10 }, signal),
     });
@@ -34,14 +35,19 @@ export const SocialScreen = ({ navigation }: any) => {
         },
     });
 
-    const styles = createStyles(theme, isIOS);
+    const styles = createStyles(theme);
 
     const renderPost = ({ item }: { item: Post }) => (
         <View style={styles.postCard}>
             {/* User Header */}
             <View style={styles.postHeader}>
                 {item.user.profilePictureUrl ? (
-                    <Image source={{ uri: item.user.profilePictureUrl }} style={styles.avatar} />
+                    <Image
+                        source={{ uri: getAbsoluteUrl(item.user.profilePictureUrl) }}
+                        style={styles.avatar}
+                        resizeMode="cover"
+                        onError={(e) => console.log('Avatar load error:', e.nativeEvent.error)}
+                    />
                 ) : (
                     <View style={styles.avatarPlaceholder}>
                         <Text style={styles.avatarText}>{item.user.name.charAt(0).toUpperCase()}</Text>
@@ -67,15 +73,17 @@ export const SocialScreen = ({ navigation }: any) => {
 
             {/* Media */}
             {item.mediaUrl && (
-                <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
+                <Image
+                    source={{ uri: getAbsoluteUrl(item.mediaUrl) }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                    onError={(e) => console.log('Post image load error:', e.nativeEvent.error)}
+                />
             )}
 
             {/* Music */}
             {item.musicUrl && (
-                <View style={styles.musicCard}>
-                    <Text style={styles.musicIcon}>🎵</Text>
-                    <Text style={styles.musicText}>Música adjunta</Text>
-                </View>
+                <MusicPlayer musicUrl={item.musicUrl} />
             )}
 
             {/* Actions */}
@@ -83,11 +91,15 @@ export const SocialScreen = ({ navigation }: any) => {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => likeMutation.mutate(item.id)}
+                    disabled={likeMutation.isPending}
                 >
                     <Text style={styles.actionIcon}>{item.isLiked ? '❤️' : '🤍'}</Text>
                     <Text style={styles.actionText}>{item.likesCount}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+                >
                     <Text style={styles.actionIcon}>💬</Text>
                     <Text style={styles.actionText}>{item.commentsCount}</Text>
                 </TouchableOpacity>
@@ -95,88 +107,91 @@ export const SocialScreen = ({ navigation }: any) => {
         </View>
     );
 
-    return (
-        <View style={styles.container}>
-            {/* Header */}
-            {isIOS ? (
-                <LinearGradient
-                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
-                    style={styles.header}
-                >
+    if (error) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.header}>
                     <Text style={styles.headerTitle}>Social</Text>
                     <Text style={styles.headerSubtitle}>Publicaciones</Text>
-                </LinearGradient>
-            ) : (
-                <View style={styles.headerAndroid}>
-                    <Text style={styles.headerTitleAndroid}>Social</Text>
-                    <Text style={styles.headerSubtitleAndroid}>Publicaciones</Text>
                 </View>
-            )}
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorIcon}>⚠️</Text>
+                    <Text style={styles.errorText}>Error al cargar publicaciones</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+                        <Text style={styles.retryText}>Reintentar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
 
-            {/* Create Post Button */}
-            <View style={styles.createContainer}>
-                <TouchableOpacity
-                    style={styles.createButton}
-                    onPress={() => navigation.navigate('CreatePost')}
-                >
-                    <Text style={styles.createButtonText}>+ Nueva Publicación</Text>
-                </TouchableOpacity>
+    return (
+        <View style={styles.container}>
+            {/* Simple Header */}
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Social</Text>
+                <Text style={styles.headerSubtitle}>Publicaciones</Text>
             </View>
 
+            {/* New Post Button */}
+            <TouchableOpacity
+                style={styles.newPostButton}
+                onPress={() => navigation.navigate('CreatePost')}
+            >
+                <Text style={styles.newPostText}>+ Nueva Publicación</Text>
+            </TouchableOpacity>
+
             {/* Posts List */}
-            <FlatList
-                data={postsData?.content || []}
-                renderItem={renderPost}
-                keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl refreshing={isLoading} onRefresh={refetch} />
-                }
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyIcon}>📱</Text>
-                        <Text style={styles.emptyText}>No hay publicaciones</Text>
-                        <Text style={styles.emptySubtext}>Sé el primero en publicar</Text>
-                    </View>
-                }
-            />
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <Text style={styles.loadingText}>Cargando publicaciones...</Text>
+                </View>
+            ) : postsData?.content && postsData.content.length > 0 ? (
+                <FlatList
+                    data={postsData.content}
+                    renderItem={renderPost}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContainer}
+                    refreshControl={
+                        <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+                    }
+                    showsVerticalScrollIndicator={false}
+                />
+            ) : (
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyIcon}>📝</Text>
+                    <Text style={styles.emptyText}>No hay publicaciones aún</Text>
+                    <TouchableOpacity
+                        style={styles.createButton}
+                        onPress={() => navigation.navigate('CreatePost')}
+                    >
+                        <Text style={styles.createButtonText}>Crear Primera Publicación</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 };
 
-const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
     },
     header: {
-        paddingTop: 80,
-        paddingBottom: 24,
-        paddingHorizontal: 20,
-    },
-    headerTitle: {
-        fontSize: 36,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: '#ffffffcc',
-    },
-    headerAndroid: {
-        paddingTop: 80,
+        paddingTop: 60,
         paddingBottom: 24,
         paddingHorizontal: 20,
         backgroundColor: theme.colors.primary,
     },
-    headerTitleAndroid: {
+    headerTitle: {
         fontSize: 32,
         fontWeight: 'bold',
         color: '#ffffff',
         marginBottom: 4,
     },
-    headerSubtitleAndroid: {
+    headerSubtitle: {
         fontSize: 14,
         color: '#ffffffdd',
     },
@@ -187,7 +202,7 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     createButton: {
         backgroundColor: theme.colors.primary,
         paddingVertical: 14,
-        borderRadius: 16,
+        borderRadius: 12,
         alignItems: 'center',
     },
     createButtonText: {
@@ -200,16 +215,11 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     },
     postCard: {
         backgroundColor: theme.colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         padding: 16,
         marginBottom: 16,
-        borderWidth: theme.isDark ? 1 : 0,
+        borderWidth: 1,
         borderColor: theme.colors.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: theme.isDark ? 0.3 : 0.1,
-        shadowRadius: 8,
-        elevation: 3,
     },
     postHeader: {
         flexDirection: 'row',
@@ -282,27 +292,86 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     },
     actions: {
         flexDirection: 'row',
-        gap: 24,
-        paddingTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.border,
+        gap: 16,
+        marginTop: 8,
     },
     actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
     },
     actionIcon: {
-        fontSize: 22,
+        fontSize: 20,
     },
     actionText: {
         fontSize: 15,
-        fontWeight: '600',
-        color: theme.colors.text,
+        color: theme.colors.textSecondary,
+        fontWeight: '500',
     },
-    emptyState: {
+    // Error states
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 60,
+        padding: 20,
+    },
+    errorIcon: {
+        fontSize: 64,
+        marginBottom: 16,
+    },
+    errorText: {
+        fontSize: 16,
+        color: theme.colors.textSecondary,
+        marginBottom: 24,
+        textAlign: 'center',
+    },
+    retryButton: {
+        backgroundColor: theme.colors.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+    },
+    retryText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    // Loading states
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: theme.colors.textSecondary,
+    },
+    // New post button
+    newPostButton: {
+        backgroundColor: theme.colors.primary,
+        marginHorizontal: 16,
+        marginVertical: 12,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    newPostText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    // List
+    listContainer: {
+        padding: 16,
+    },
+    // Empty state
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
     emptyIcon: {
         fontSize: 64,
@@ -310,12 +379,13 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     },
     emptyText: {
         fontSize: 18,
-        fontWeight: '600',
-        color: theme.colors.text,
-        marginBottom: 8,
+        color: theme.colors.textSecondary,
+        marginBottom: 24,
+        textAlign: 'center',
     },
     emptySubtext: {
         fontSize: 14,
         color: theme.colors.textSecondary,
+        textAlign: 'center',
     },
 });

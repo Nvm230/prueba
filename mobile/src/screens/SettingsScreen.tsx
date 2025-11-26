@@ -1,4 +1,4 @@
-// SettingsScreen with Color Picker and Preferences
+// Simplified SettingsScreen - Minimalist Design
 import React, { useState } from 'react';
 import {
     View,
@@ -8,13 +8,11 @@ import {
     Pressable,
     Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, COLOR_PRESETS, ColorPreset, ThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Switch } from '../components/ui/Switch';
-import Animated, { FadeInRight } from 'react-native-reanimated';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const { theme, mode, colorPreset, setMode, setColorPreset } = useTheme();
@@ -45,207 +43,192 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
-            <LinearGradient
-                colors={theme.colors.primaryGradient as any}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.header}
-            >
+            {/* Simple Header */}
+            <View style={styles.header}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Text style={styles.backIcon}>←</Text>
                 </Pressable>
                 <Text style={styles.headerTitle}>Configuración</Text>
                 <View style={styles.placeholder} />
-            </LinearGradient>
+            </View>
 
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Theme Section */}
-                <Animated.View entering={FadeInRight.delay(100)}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🎨 Apariencia</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🎨 Apariencia</Text>
 
-                        <Card variant="premium" style={styles.card}>
-                            <Text style={styles.cardTitle}>Modo de Tema</Text>
-                            <View style={styles.themeOptions}>
-                                {(['dark', 'light', 'auto'] as ThemeMode[]).map((m) => (
-                                    <Pressable
-                                        key={m}
+                    <Card variant="elevated" style={styles.card}>
+                        <Text style={styles.cardTitle}>Modo de Tema</Text>
+                        <View style={styles.themeOptions}>
+                            {(['dark', 'light', 'auto'] as ThemeMode[]).map((m) => (
+                                <Pressable
+                                    key={m}
+                                    style={[
+                                        styles.themeOption,
+                                        mode === m && styles.themeOptionActive,
+                                    ]}
+                                    onPress={() => setMode(m)}
+                                >
+                                    <Text
                                         style={[
-                                            styles.themeOption,
-                                            mode === m && styles.themeOptionActive,
+                                            styles.themeOptionText,
+                                            mode === m && styles.themeOptionTextActive,
                                         ]}
-                                        onPress={() => setMode(m)}
                                     >
-                                        <Text
+                                        {m === 'dark' ? '🌙 Oscuro' : m === 'light' ? '☀️ Claro' : '🔄 Auto'}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </Card>
+
+                    <Card variant="elevated" style={styles.card}>
+                        <Text style={styles.cardTitle}>Color Principal</Text>
+                        <Text style={styles.cardSubtitle}>
+                            Elige tu color favorito para personalizar la app
+                        </Text>
+                        <View style={styles.colorGrid}>
+                            {(Object.keys(COLOR_PRESETS) as ColorPreset[]).map((preset) => {
+                                const color = COLOR_PRESETS[preset];
+                                return (
+                                    <Pressable
+                                        key={preset}
+                                        style={styles.colorOption}
+                                        onPress={() => setColorPreset(preset)}
+                                    >
+                                        <View
                                             style={[
-                                                styles.themeOptionText,
-                                                mode === m && styles.themeOptionTextActive,
+                                                styles.colorCircle,
+                                                { backgroundColor: color.primary },
+                                                colorPreset === preset && styles.colorCircleActive,
                                             ]}
                                         >
-                                            {m === 'dark' ? '🌙 Oscuro' : m === 'light' ? '☀️ Claro' : '🔄 Auto'}
-                                        </Text>
+                                            {colorPreset === preset && (
+                                                <Text style={styles.colorCheck}>✓</Text>
+                                            )}
+                                        </View>
+                                        <Text style={styles.colorName}>{color.name}</Text>
                                     </Pressable>
-                                ))}
-                            </View>
-                        </Card>
-
-                        <Card variant="premium" style={styles.card}>
-                            <Text style={styles.cardTitle}>Color Principal</Text>
-                            <Text style={styles.cardSubtitle}>
-                                Elige tu color favorito para personalizar la app
-                            </Text>
-                            <View style={styles.colorGrid}>
-                                {(Object.keys(COLOR_PRESETS) as ColorPreset[]).map((preset) => {
-                                    const color = COLOR_PRESETS[preset];
-                                    return (
-                                        <Pressable
-                                            key={preset}
-                                            style={styles.colorOption}
-                                            onPress={() => setColorPreset(preset)}
-                                        >
-                                            <LinearGradient
-                                                colors={color.gradient as any}
-                                                style={[
-                                                    styles.colorCircle,
-                                                    colorPreset === preset && styles.colorCircleActive,
-                                                ]}
-                                            >
-                                                {colorPreset === preset && (
-                                                    <Text style={styles.colorCheck}>✓</Text>
-                                                )}
-                                            </LinearGradient>
-                                            <Text style={styles.colorName}>{color.name}</Text>
-                                        </Pressable>
-                                    );
-                                })}
-                            </View>
-                        </Card>
-                    </View>
-                </Animated.View>
+                                );
+                            })}
+                        </View>
+                    </Card>
+                </View>
 
                 {/* Notifications Section */}
-                <Animated.View entering={FadeInRight.delay(200)}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🔔 Notificaciones</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🔔 Notificaciones</Text>
 
-                        <Card variant="premium" style={styles.card}>
-                            <View style={styles.settingRow}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={styles.settingLabel}>Push Notifications</Text>
-                                    <Text style={styles.settingDescription}>
-                                        Recibe notificaciones de eventos, mensajes y más
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={pushNotifications}
-                                    onValueChange={setPushNotifications}
-                                />
+                    <Card variant="elevated" style={styles.card}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>Push Notifications</Text>
+                                <Text style={styles.settingDescription}>
+                                    Recibe notificaciones de eventos, mensajes y más
+                                </Text>
                             </View>
+                            <Switch
+                                value={pushNotifications}
+                                onValueChange={setPushNotifications}
+                            />
+                        </View>
 
-                            <View style={styles.divider} />
+                        <View style={styles.divider} />
 
-                            <View style={styles.settingRow}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={styles.settingLabel}>Sonido</Text>
-                                    <Text style={styles.settingDescription}>
-                                        Reproducir sonido con las notificaciones
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={sound}
-                                    onValueChange={setSound}
-                                />
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>Sonido</Text>
+                                <Text style={styles.settingDescription}>
+                                    Reproducir sonido con las notificaciones
+                                </Text>
                             </View>
-                        </Card>
-                    </View>
-                </Animated.View>
+                            <Switch
+                                value={sound}
+                                onValueChange={setSound}
+                            />
+                        </View>
+                    </Card>
+                </View>
 
                 {/* Privacy Section */}
-                <Animated.View entering={FadeInRight.delay(300)}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🔒 Privacidad</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🔒 Privacidad</Text>
 
-                        <Card variant="premium" style={styles.card}>
-                            <View style={styles.settingRow}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={styles.settingLabel}>Perfil Privado</Text>
-                                    <Text style={styles.settingDescription}>
-                                        Solo tus amigos pueden ver tu perfil
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={privateProfile}
-                                    onValueChange={setPrivateProfile}
-                                />
+                    <Card variant="elevated" style={styles.card}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>Perfil Privado</Text>
+                                <Text style={styles.settingDescription}>
+                                    Solo tus amigos pueden ver tu perfil
+                                </Text>
                             </View>
+                            <Switch
+                                value={privateProfile}
+                                onValueChange={setPrivateProfile}
+                            />
+                        </View>
 
-                            <View style={styles.divider} />
+                        <View style={styles.divider} />
 
-                            <View style={styles.settingRow}>
-                                <View style={styles.settingInfo}>
-                                    <Text style={styles.settingLabel}>Mostrar en Búsquedas</Text>
-                                    <Text style={styles.settingDescription}>
-                                        Permitir que otros te encuentren
-                                    </Text>
-                                </View>
-                                <Switch
-                                    value={showInSearch}
-                                    onValueChange={setShowInSearch}
-                                />
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>Mostrar en Búsquedas</Text>
+                                <Text style={styles.settingDescription}>
+                                    Permitir que otros te encuentren
+                                </Text>
                             </View>
-                        </Card>
-                    </View>
-                </Animated.View>
+                            <Switch
+                                value={showInSearch}
+                                onValueChange={setShowInSearch}
+                            />
+                        </View>
+                    </Card>
+                </View>
 
                 {/* About Section */}
-                <Animated.View entering={FadeInRight.delay(400)}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>ℹ️ Acerca de</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>ℹ️ Acerca de</Text>
 
-                        <Card variant="premium" style={styles.card}>
-                            <View style={styles.aboutRow}>
-                                <Text style={styles.aboutLabel}>Versión</Text>
-                                <Text style={styles.aboutValue}>1.0.0</Text>
-                            </View>
-                            <View style={styles.divider} />
-                            <View style={styles.aboutRow}>
-                                <Text style={styles.aboutLabel}>Build</Text>
-                                <Text style={styles.aboutValue}>2024.11.25</Text>
-                            </View>
-                        </Card>
+                    <Card variant="elevated" style={styles.card}>
+                        <View style={styles.aboutRow}>
+                            <Text style={styles.aboutLabel}>Versión</Text>
+                            <Text style={styles.aboutValue}>1.0.0</Text>
+                        </View>
+                        <View style={styles.divider} />
+                        <View style={styles.aboutRow}>
+                            <Text style={styles.aboutLabel}>Build</Text>
+                            <Text style={styles.aboutValue}>2024.11.25</Text>
+                        </View>
+                    </Card>
 
-                        <Card variant="premium" style={styles.card}>
-                            <Pressable style={styles.linkRow}>
-                                <Text style={styles.linkText}>📄 Términos de Servicio</Text>
-                                <Text style={styles.linkArrow}>→</Text>
-                            </Pressable>
-                            <View style={styles.divider} />
-                            <Pressable style={styles.linkRow}>
-                                <Text style={styles.linkText}>🔐 Política de Privacidad</Text>
-                                <Text style={styles.linkArrow}>→</Text>
-                            </Pressable>
-                            <View style={styles.divider} />
-                            <Pressable style={styles.linkRow}>
-                                <Text style={styles.linkText}>❓ Ayuda y Soporte</Text>
-                                <Text style={styles.linkArrow}>→</Text>
-                            </Pressable>
-                        </Card>
-                    </View>
-                </Animated.View>
+                    <Card variant="elevated" style={styles.card}>
+                        <Pressable style={styles.linkRow}>
+                            <Text style={styles.linkText}>📄 Términos de Servicio</Text>
+                            <Text style={styles.linkArrow}>→</Text>
+                        </Pressable>
+                        <View style={styles.divider} />
+                        <Pressable style={styles.linkRow}>
+                            <Text style={styles.linkText}>🔐 Política de Privacidad</Text>
+                            <Text style={styles.linkArrow}>→</Text>
+                        </Pressable>
+                        <View style={styles.divider} />
+                        <Pressable style={styles.linkRow}>
+                            <Text style={styles.linkText}>❓ Ayuda y Soporte</Text>
+                            <Text style={styles.linkArrow}>→</Text>
+                        </Pressable>
+                    </Card>
+                </View>
 
                 {/* Logout Button */}
-                <Animated.View entering={FadeInRight.delay(500)}>
-                    <View style={styles.section}>
-                        <Button
-                            title="Cerrar Sesión"
-                            onPress={handleLogout}
-                            variant="outline"
-                            size="large"
-                            style={styles.logoutButton}
-                        />
-                    </View>
-                </Animated.View>
+                <View style={styles.section}>
+                    <Button
+                        title="Cerrar Sesión"
+                        onPress={handleLogout}
+                        variant="outline"
+                        size="large"
+                        style={styles.logoutButton}
+                    />
+                </View>
 
                 <View style={styles.bottomSpacing} />
             </ScrollView>
@@ -266,6 +249,7 @@ const createStyles = (theme: any) =>
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
+            backgroundColor: theme.colors.primary,
         },
         backButton: {
             width: 40,
@@ -387,9 +371,6 @@ const createStyles = (theme: any) =>
         settingDescription: {
             fontSize: 13,
             color: theme.colors.textSecondary,
-        },
-        settingToggle: {
-            fontSize: 24,
         },
         divider: {
             height: 1,

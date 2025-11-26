@@ -1,4 +1,4 @@
-// Modern HomeScreen with Sections and Glassmorphism
+// Simplified HomeScreen - Minimalist Design
 import React from 'react';
 import {
     View,
@@ -9,7 +9,6 @@ import {
     Pressable,
     Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Card';
@@ -19,7 +18,6 @@ import { useQuery } from '@tanstack/react-query';
 import { eventService } from '../../services/events';
 import { storyService } from '../../services/stories';
 import { postService } from '../../services/posts';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export const HomeScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
@@ -55,13 +53,8 @@ export const HomeScreen = ({ navigation }: any) => {
 
     return (
         <View style={styles.container}>
-            {/* Header with Gradient */}
-            <LinearGradient
-                colors={theme.colors.primaryGradient as any}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.header}
-            >
+            {/* Simple Header */}
+            <View style={styles.header}>
                 <View style={styles.headerContent}>
                     <View>
                         <Text style={styles.greeting}>Hola,</Text>
@@ -74,7 +67,7 @@ export const HomeScreen = ({ navigation }: any) => {
                         </View>
                     </Pressable>
                 </View>
-            </LinearGradient>
+            </View>
 
             <ScrollView
                 style={styles.scrollView}
@@ -84,138 +77,127 @@ export const HomeScreen = ({ navigation }: any) => {
                 }
             >
                 {/* Stories Section */}
-                <Animated.View entering={FadeInDown.delay(100)}>
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Stories</Text>
-                            <Pressable onPress={() => navigation.navigate('Stories')}>
-                                <Text style={styles.seeAll}>Ver todas</Text>
-                            </Pressable>
-                        </View>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.horizontalScroll}
-                        >
-                            {recentStories.map((story, index) => (
-                                <Pressable
-                                    key={story.id}
-                                    onPress={() =>
-                                        navigation.navigate('StoryViewer', { storyId: story.id })
-                                    }
-                                    style={styles.storyItem}
-                                >
-                                    <LinearGradient
-                                        colors={theme.colors.primaryGradient as any}
-                                        style={styles.storyRing}
-                                    >
-                                        <Avatar uri={story.user.profilePictureUrl} name={story.user.name} size={56} />
-                                    </LinearGradient>
-                                    <Text style={styles.storyName} numberOfLines={1}>
-                                        {story.user.name.split(' ')[0]}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </ScrollView>
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Stories</Text>
+                        <Pressable onPress={() => navigation.navigate('Stories')}>
+                            <Text style={styles.seeAll}>Ver todas</Text>
+                        </Pressable>
                     </View>
-                </Animated.View>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.horizontalScroll}
+                    >
+                        {recentStories.map((story) => (
+                            <Pressable
+                                key={story.id}
+                                onPress={() =>
+                                    navigation.navigate('StoryViewer', { storyId: story.id })
+                                }
+                                style={styles.storyItem}
+                            >
+                                <View style={styles.storyRing}>
+                                    <Avatar uri={story.user.profilePictureUrl} name={story.user.name} size={56} />
+                                </View>
+                                <Text style={styles.storyName} numberOfLines={1}>
+                                    {story.user.name.split(' ')[0]}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </ScrollView>
+                </View>
 
                 {/* Upcoming Events Section */}
-                <Animated.View entering={FadeInDown.delay(200)}>
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Próximos Eventos</Text>
-                            <Pressable onPress={() => navigation.navigate('Events')}>
-                                <Text style={styles.seeAll}>Ver todos</Text>
-                            </Pressable>
-                        </View>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.horizontalScroll}
-                        >
-                            {upcomingEvents.map((event: any, index: number) => (
-                                <Card
-                                    key={event.id}
-                                    variant="premium"
-                                    elevated
-                                    onPress={() =>
-                                        navigation.navigate('EventDetail', { eventId: event.id })
-                                    }
-                                    style={styles.eventCard}
-                                >
-                                    <Text style={styles.eventDate}>
-                                        {new Date(event.date).toLocaleDateString('es-ES', {
-                                            day: 'numeric',
-                                            month: 'short',
-                                        })}
-                                    </Text>
-                                    <Text style={styles.eventTitle} numberOfLines={2}>
-                                        {event.title}
-                                    </Text>
-                                    <Text style={styles.eventLocation} numberOfLines={1}>
-                                        📍 {event.location}
-                                    </Text>
-                                    <View style={styles.eventFooter}>
-                                        <Text style={styles.eventAttendees}>
-                                            👥 {event.attendeeCount || 0}
-                                        </Text>
-                                    </View>
-                                </Card>
-                            ))}
-                        </ScrollView>
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Próximos Eventos</Text>
+                        <Pressable onPress={() => navigation.navigate('Events')}>
+                            <Text style={styles.seeAll}>Ver todos</Text>
+                        </Pressable>
                     </View>
-                </Animated.View>
-
-                {/* Recent Posts Section */}
-                <Animated.View entering={FadeInDown.delay(300)}>
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Publicaciones Recientes</Text>
-                            <Pressable onPress={() => navigation.navigate('Social')}>
-                                <Text style={styles.seeAll}>Ver todas</Text>
-                            </Pressable>
-                        </View>
-                        {recentPosts.map((post: any) => (
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.horizontalScroll}
+                    >
+                        {upcomingEvents.map((event: any) => (
                             <Card
-                                key={post.id}
-                                variant="premium"
-                                elevated
-                                onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
-                                style={styles.postCard}
+                                key={event.id}
+                                variant="elevated"
+                                onPress={() =>
+                                    navigation.navigate('EventDetail', { eventId: event.id })
+                                }
+                                style={styles.eventCard}
                             >
-                                <View style={styles.postHeader}>
-                                    <Avatar
-                                        uri={post.user.profilePictureUrl}
-                                        name={post.user.name}
-                                        size={40}
-                                    />
-                                    <View style={styles.postUserInfo}>
-                                        <Text style={styles.postUserName}>{post.user.name}</Text>
-                                        <Text style={styles.postTime}>
-                                            {new Date(post.createdAt).toLocaleDateString('es-ES')}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <Text style={styles.postContent} numberOfLines={3}>
-                                    {post.content}
+                                <Text style={styles.eventDate}>
+                                    {new Date(event.date).toLocaleDateString('es-ES', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                    })}
                                 </Text>
-                                {post.mediaUrl && (
-                                    <Image
-                                        source={{ uri: post.mediaUrl }}
-                                        style={styles.postImage}
-                                    />
-                                )}
-                                <View style={styles.postFooter}>
-                                    <Text style={styles.postStat}>❤️ {post.likesCount || 0}</Text>
-                                    <Text style={styles.postStat}>
-                                        💬 {post.commentsCount || 0}
+                                <Text style={styles.eventTitle} numberOfLines={2}>
+                                    {event.title}
+                                </Text>
+                                <Text style={styles.eventLocation} numberOfLines={1}>
+                                    📍 {event.location}
+                                </Text>
+                                <View style={styles.eventFooter}>
+                                    <Text style={styles.eventAttendees}>
+                                        👥 {event.attendeeCount || 0}
                                     </Text>
                                 </View>
                             </Card>
                         ))}
+                    </ScrollView>
+                </View>
+
+                {/* Recent Posts Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Publicaciones Recientes</Text>
+                        <Pressable onPress={() => navigation.navigate('Social')}>
+                            <Text style={styles.seeAll}>Ver todas</Text>
+                        </Pressable>
                     </View>
-                </Animated.View>
+                    {recentPosts.map((post: any) => (
+                        <Card
+                            key={post.id}
+                            variant="elevated"
+                            onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+                            style={styles.postCard}
+                        >
+                            <View style={styles.postHeader}>
+                                <Avatar
+                                    uri={post.user.profilePictureUrl}
+                                    name={post.user.name}
+                                    size={40}
+                                />
+                                <View style={styles.postUserInfo}>
+                                    <Text style={styles.postUserName}>{post.user.name}</Text>
+                                    <Text style={styles.postTime}>
+                                        {new Date(post.createdAt).toLocaleDateString('es-ES')}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Text style={styles.postContent} numberOfLines={3}>
+                                {post.content}
+                            </Text>
+                            {post.mediaUrl && (
+                                <Image
+                                    source={{ uri: post.mediaUrl }}
+                                    style={styles.postImage}
+                                />
+                            )}
+                            <View style={styles.postFooter}>
+                                <Text style={styles.postStat}>❤️ {post.likesCount || 0}</Text>
+                                <Text style={styles.postStat}>
+                                    💬 {post.commentsCount || 0}
+                                </Text>
+                            </View>
+                        </Card>
+                    ))}
+                </View>
 
                 <View style={styles.bottomSpacing} />
             </ScrollView>
@@ -233,6 +215,7 @@ const createStyles = (theme: any) =>
             paddingTop: 60,
             paddingBottom: 24,
             paddingHorizontal: 20,
+            backgroundColor: theme.colors.primary,
         },
         headerContent: {
             flexDirection: 'row',
@@ -290,6 +273,8 @@ const createStyles = (theme: any) =>
         storyRing: {
             padding: 3,
             borderRadius: 32,
+            borderWidth: 2,
+            borderColor: theme.colors.primary,
             marginBottom: 8,
         },
         storyName: {
@@ -330,6 +315,7 @@ const createStyles = (theme: any) =>
         postCard: {
             marginHorizontal: 20,
             marginBottom: 16,
+            padding: 16,
         },
         postHeader: {
             flexDirection: 'row',

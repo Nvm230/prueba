@@ -6,23 +6,20 @@ import {
     FlatList,
     TouchableOpacity,
     Image,
-    Platform,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { groupService, Group } from '../../services/groups';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LinearGradient } from 'expo-linear-gradient';
 
 export const GroupsScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
-    const isIOS = Platform.OS === 'ios';
 
     const { data: groups, isLoading, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: ({ signal }) => groupService.getAll(signal),
     });
 
-    const styles = createStyles(theme, isIOS);
+    const styles = createStyles(theme);
 
     const renderGroupCard = ({ item }: { item: Group }) => (
         <TouchableOpacity
@@ -60,22 +57,10 @@ export const GroupsScreen = ({ navigation }: any) => {
     return (
         <View style={styles.container}>
             {/* Header */}
-            {isIOS ? (
-                <LinearGradient
-                    colors={theme.isDark ? ['#5b21b6', '#6d28d9'] : ['#5b21b6', '#7c3aed']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.headerIOS}
-                >
-                    <Text style={styles.headerTitle}>Grupos</Text>
-                    <Text style={styles.headerSubtitle}>Únete a comunidades</Text>
-                </LinearGradient>
-            ) : (
-                <View style={styles.headerAndroid}>
-                    <Text style={styles.headerTitleAndroid}>Grupos</Text>
-                    <Text style={styles.headerSubtitleAndroid}>Únete a comunidades</Text>
-                </View>
-            )}
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Grupos</Text>
+                <Text style={styles.headerSubtitle}>Únete a comunidades</Text>
+            </View>
 
             {/* Create Button */}
             <View style={styles.createButtonContainer}>
@@ -107,39 +92,24 @@ export const GroupsScreen = ({ navigation }: any) => {
     );
 };
 
-const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
     },
-    headerIOS: {
-        paddingTop: 80,
-        paddingBottom: 24,
-        paddingHorizontal: 20,
-    },
-    headerTitle: {
-        fontSize: 36,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: '#ffffffcc',
-    },
-    headerAndroid: {
-        paddingTop: 80,
+    header: {
+        paddingTop: 60,
         paddingBottom: 24,
         paddingHorizontal: 20,
         backgroundColor: theme.colors.primary,
     },
-    headerTitleAndroid: {
+    headerTitle: {
         fontSize: 32,
         fontWeight: 'bold',
         color: '#ffffff',
         marginBottom: 4,
     },
-    headerSubtitleAndroid: {
+    headerSubtitle: {
         fontSize: 14,
         color: '#ffffffdd',
     },
@@ -151,13 +121,8 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
         backgroundColor: theme.colors.primary,
         paddingVertical: 14,
         paddingHorizontal: 24,
-        borderRadius: 16,
+        borderRadius: 12,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
     },
     createButtonText: {
         color: '#ffffff',
@@ -170,15 +135,10 @@ const createStyles = (theme: any, isIOS: boolean) => StyleSheet.create({
     groupCard: {
         flexDirection: 'row',
         backgroundColor: theme.colors.card,
-        borderRadius: 16,
+        borderRadius: 12,
         marginBottom: 16,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: theme.isDark ? 0.3 : 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: theme.isDark ? 1 : 0,
+        borderWidth: 1,
         borderColor: theme.colors.border,
     },
     groupImage: {

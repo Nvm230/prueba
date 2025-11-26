@@ -14,36 +14,55 @@ export interface Message {
     read: boolean;
 }
 
-export interface Conversation {
-    userId: number;
-    userName: string;
-    userPhoto?: string;
-    lastMessage: string;
-    lastMessageTime: string;
+export interface Chat {
+    id: number;
+    otherUser: {
+        id: number;
+        name: string;
+        email: string;
+        profilePictureUrl?: string;
+    };
+    lastMessage?: {
+        content: string;
+        createdAt: string;
+    };
     unreadCount: number;
+    createdAt: string;
 }
 
 export const chatService = {
-    async getConversations(): Promise<Conversation[]> {
-        const response = await apiClient.get('/messages/conversations');
-        return response.data;
+    async getConversations(): Promise<Chat[]> {
+        const response = await apiClient.get('/private-messages/conversations');
+        // Transform backend response to match Chat interface
+        return response.data.map((conv: any) => ({
+            id: conv.userId, // Using userId as conversation id
+            otherUser: {
+                id: conv.userId,
+                name: conv.name,
+                email: conv.email,
+                profilePictureUrl: conv.profilePictureUrl,
+            },
+            unreadCount: conv.unreadCount || 0,
+            createdAt: new Date().toISOString(), // Backend doesn't return this
+        }));
     },
 
     async getMessages(userId: number): Promise<Message[]> {
-        const response = await apiClient.get(`/messages/with/${userId}`);
-        return response.data;
+        const response = await apiClient.get(`/private-messages/conversation/${userId}`);
+        return response.data.content || response.data;
     },
 
     async sendMessage(receiverId: number, content: string): Promise<Message> {
-        const response = await apiClient.post('/messages', {
+        // Note: Backend uses WebSocket for sending, this is a fallback
+        const response = await apiClient.post('/private-messages', {
             receiverId,
             content,
         });
         return response.data;
     },
 
-    async markAsRead(messageId: number): Promise<void> {
-        await apiClient.put(`/messages/${messageId}/read`);
+    async markAsRead(otherUserId: number): Promise<void> {
+        await apiClient.post(`/private-messages/conversation/${otherUserId}/mark-read`);
     },
 
     // Alias for compatibility

@@ -3,14 +3,31 @@ import apiClient from './api';
 export interface Event {
     id: number;
     title: string;
+    category: string;
     description: string;
+    faculty?: string;
+    career?: string;
     startTime: string;
     endTime: string;
-    location: string;
+    visibility: 'PUBLIC' | 'PRIVATE';
     imageUrl?: string;
     organizerId: number;
     maxCapacity?: number;
     currentAttendees?: number;
+    attendeeCount?: number;
+    status?: string;
+}
+
+export interface CreateEventRequest {
+    title: string;
+    category: string;
+    description: string;
+    faculty?: string;
+    career?: string;
+    startTime: string;
+    endTime: string;
+    visibility: 'PUBLIC' | 'PRIVATE';
+    maxCapacity?: number;
 }
 
 export const eventService = {
@@ -19,8 +36,13 @@ export const eventService = {
         return response.data;
     },
 
-    async getById(id: number): Promise<Event> {
-        const response = await apiClient.get(`/events/${id}`);
+    async getById(id: number, signal?: AbortSignal): Promise<Event> {
+        const response = await apiClient.get(`/events/${id}`, { signal });
+        return response.data;
+    },
+
+    async create(data: CreateEventRequest): Promise<Event> {
+        const response = await apiClient.post('/events', data);
         return response.data;
     },
 

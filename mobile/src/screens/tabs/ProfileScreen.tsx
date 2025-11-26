@@ -1,4 +1,4 @@
-// Modern ProfileScreen with Stats and Tabs
+// Simplified ProfileScreen - Minimalist Design
 import React, { useState } from 'react';
 import {
     View,
@@ -6,54 +6,77 @@ import {
     StyleSheet,
     ScrollView,
     Pressable,
-    Image,
     RefreshControl,
+    FlatList,
+    Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui/Card';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { userService } from '../../services/users';
+import { postService, Post } from '../../services/posts';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
     const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'events'>('posts');
-    const [refreshing, setRefreshing] = useState(false);
 
-    const stats = {
-        posts: 24,
-        followers: 156,
-        following: 89,
-        events: 12,
-    };
+    // Load user stats from backend
+    const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+        queryKey: ['userStats', user?.id],
+        queryFn: () => userService.getStats(user?.id),
+        enabled: !!user?.id,
+    });
+
+    // Load user posts
+    const { data: postsData, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
+        queryKey: ['userPosts', user?.id],
+        queryFn: ({ signal }) => postService.getAll({ page: 0, size: 20 }, signal),
+        enabled: !!user?.id && activeTab === 'posts',
+    });
 
     const onRefresh = async () => {
-        setRefreshing(true);
-        // Simulate refresh
-        setTimeout(() => setRefreshing(false), 1000);
+        await Promise.all([refetchStats(), refetchPosts()]);
     };
 
     const styles = createStyles(theme);
+
+    const renderPost = ({ item }: { item: Post }) => (
+        <View style={styles.postCard}>
+            {item.content && (
+                <Text style={styles.postContent}>{item.content}</Text>
+            )}
+            {item.mediaUrl && (
+                <Image
+                    source={{ uri: item.mediaUrl }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                />
+            )}
+            <View style={styles.postStats}>
+                <Text style={styles.postStat}>❤️ {item.likesCount}</Text>
+                <Text style={styles.postStat}>💬 {item.commentsCount}</Text>
+            </View>
+        </View>
+    );
 
     return (
         <View style={styles.container}>
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    <RefreshControl
+                        refreshing={statsLoading || postsLoading}
+                        onRefresh={onRefresh}
+                    />
                 }
             >
-                {/* Cover Image with Gradient */}
+                {/* Cover with solid color */}
                 <View style={styles.coverContainer}>
-                    <LinearGradient
-                        colors={theme.colors.primaryGradient as any}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.cover}
-                    />
+                    <View style={styles.cover} />
 
                     {/* Settings Button */}
                     <Pressable
@@ -65,18 +88,15 @@ export const ProfileScreen = ({ navigation }: any) => {
                 </View>
 
                 {/* Profile Info */}
-                <Animated.View entering={FadeInDown.delay(100)} style={styles.profileInfo}>
+                <View style={styles.profileInfo}>
                     <View style={styles.avatarContainer}>
-                        <LinearGradient
-                            colors={theme.colors.primaryGradient as any}
-                            style={styles.avatarRing}
-                        >
+                        <View style={styles.avatarRing}>
                             <Avatar
                                 uri={user?.profilePictureUrl}
                                 name={user?.name || 'Usuario'}
                                 size={100}
                             />
-                        </LinearGradient>
+                        </View>
                     </View>
 
                     <Text style={styles.name}>{user?.name || 'Usuario'}</Text>
@@ -102,30 +122,38 @@ export const ProfileScreen = ({ navigation }: any) => {
                             style={styles.themeButton}
                         />
                     </View>
-                </Animated.View>
+                </View>
 
                 {/* Stats Cards */}
-                <Animated.View entering={FadeInDown.delay(200)} style={styles.statsContainer}>
-                    <Card variant="premium" style={styles.statCard}>
-                        <Text style={styles.statNumber}>{stats.posts}</Text>
+                <View style={styles.statsContainer}>
+                    <Card variant="elevated" style={styles.statCard}>
+                        <Text style={styles.statNumber}>
+                            {statsLoading ? '...' : (stats?.postsCount || 0)}
+                        </Text>
                         <Text style={styles.statLabel}>Posts</Text>
                     </Card>
-                    <Card variant="premium" style={styles.statCard}>
-                        <Text style={styles.statNumber}>{stats.followers}</Text>
+                    <Card variant="elevated" style={styles.statCard}>
+                        <Text style={styles.statNumber}>
+                            {statsLoading ? '...' : (stats?.followersCount || 0)}
+                        </Text>
                         <Text style={styles.statLabel}>Seguidores</Text>
                     </Card>
-                    <Card variant="premium" style={styles.statCard}>
-                        <Text style={styles.statNumber}>{stats.following}</Text>
+                    <Card variant="elevated" style={styles.statCard}>
+                        <Text style={styles.statNumber}>
+                            {statsLoading ? '...' : (stats?.followingCount || 0)}
+                        </Text>
                         <Text style={styles.statLabel}>Siguiendo</Text>
                     </Card>
-                    <Card variant="premium" style={styles.statCard}>
-                        <Text style={styles.statNumber}>{stats.events}</Text>
+                    <Card variant="elevated" style={styles.statCard}>
+                        <Text style={styles.statNumber}>
+                            {statsLoading ? '...' : (stats?.eventsCount || 0)}
+                        </Text>
                         <Text style={styles.statLabel}>Eventos</Text>
                     </Card>
-                </Animated.View>
+                </View>
 
                 {/* Tabs */}
-                <Animated.View entering={FadeInDown.delay(300)} style={styles.tabs}>
+                <View style={styles.tabs}>
                     <Pressable
                         style={[styles.tab, activeTab === 'posts' && styles.tabActive]}
                         onPress={() => setActiveTab('posts')}
@@ -150,21 +178,34 @@ export const ProfileScreen = ({ navigation }: any) => {
                             Eventos
                         </Text>
                     </Pressable>
-                </Animated.View>
+                </View>
 
                 {/* Content */}
                 <View style={styles.content}>
                     {activeTab === 'posts' && (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyIcon}>📝</Text>
-                            <Text style={styles.emptyText}>No hay posts aún</Text>
-                            <Button
-                                title="Crear Post"
-                                onPress={() => navigation.navigate('CreatePost')}
-                                variant="primary"
-                                style={styles.emptyButton}
-                            />
-                        </View>
+                        <>
+                            {postsLoading ? (
+                                <Text style={styles.loadingText}>Cargando posts...</Text>
+                            ) : postsData?.content && postsData.content.length > 0 ? (
+                                <FlatList
+                                    data={postsData.content}
+                                    renderItem={renderPost}
+                                    keyExtractor={(item) => item.id.toString()}
+                                    scrollEnabled={false}
+                                />
+                            ) : (
+                                <View style={styles.emptyState}>
+                                    <Text style={styles.emptyIcon}>📝</Text>
+                                    <Text style={styles.emptyText}>No hay posts aún</Text>
+                                    <Button
+                                        title="Crear Post"
+                                        onPress={() => navigation.navigate('CreatePost')}
+                                        variant="primary"
+                                        style={styles.emptyButton}
+                                    />
+                                </View>
+                            )}
+                        </>
                     )}
                     {activeTab === 'media' && (
                         <View style={styles.emptyState}>
@@ -203,6 +244,7 @@ const createStyles = (theme: any) =>
         },
         cover: {
             height: 200,
+            backgroundColor: theme.colors.primary,
         },
         settingsButton: {
             position: 'absolute',
@@ -229,6 +271,8 @@ const createStyles = (theme: any) =>
         avatarRing: {
             padding: 4,
             borderRadius: 56,
+            borderWidth: 3,
+            borderColor: theme.colors.primary,
         },
         name: {
             fontSize: 24,
@@ -308,6 +352,39 @@ const createStyles = (theme: any) =>
         content: {
             marginTop: 24,
             paddingHorizontal: 20,
+        },
+        loadingText: {
+            textAlign: 'center',
+            color: theme.colors.textSecondary,
+            marginTop: 20,
+        },
+        postCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+        postContent: {
+            fontSize: 14,
+            color: theme.colors.text,
+            marginBottom: 12,
+        },
+        postImage: {
+            width: '100%',
+            height: 200,
+            borderRadius: 8,
+            marginBottom: 12,
+            backgroundColor: theme.colors.surfaceVariant,
+        },
+        postStats: {
+            flexDirection: 'row',
+            gap: 16,
+        },
+        postStat: {
+            fontSize: 14,
+            color: theme.colors.textSecondary,
         },
         emptyState: {
             alignItems: 'center',

@@ -1,11 +1,11 @@
 services:
   db:
     image: postgres:16
-    container_name: univibe-db
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-db
     env_file:
       - .env
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -21,14 +21,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: univibe-backend
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-backend
     depends_on:
       db:
         condition: service_healthy
     env_file:
       - ./backend/.env
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
@@ -44,30 +44,17 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile.aws-https
       args:
-        # IMPORTANTE: Cambiar 3.151.11.170 por tu IP pública de AWS
-        # Ejemplo: Si tu IP es 1.2.3.4, usa: https://1.2.3.4
-        # 
-        # NOTA: Si tienes dominio, también puedes usarlo aquí
-        # Ejemplo con dominio: https://univibe.example.com
-        #
-        # IMPORTANTE: 
-        # - Usa https:// (no http://)
-        # - NO incluyas el puerto (Nginx escucha en 443 automáticamente)
-        # - VITE_WS_BASE_URL debe usar https://, NO wss://
-        # - SockJS maneja la actualización a WebSocket internamente
-        # 
-        # ACTUALIZADO: Usando dominio No-IP: univibeapp.ddns.net
-        # IMPORTANTE: Cambia estas URLs por tu dominio o IP pública de AWS
-        - VITE_API_BASE_URL=https://univibeapp.ddns.net
-        - VITE_WS_BASE_URL=https://univibeapp.ddns.net
-    container_name: univibe-frontend
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+        - VITE_WS_BASE_URL=${VITE_WS_BASE_URL}
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-frontend
     depends_on:
       - backend
     ports:
-      - "443:443"   # HTTPS (puerto 80 está ocupado por Nginx del host)
+      - "443:443"
     volumes:
-      # Montar certificados SSL desde el host
-      # Asegúrate de tener los certificados en ./ssl/cert.pem y ./ssl/key.pem
+      # Mount SSL certificates from host
+      # Make sure you have certificates in ./ssl/cert.pem and ./ssl/key.pem
       - ./ssl:/etc/nginx/certs:ro
     networks:
       - univibe-network
@@ -80,5 +67,3 @@ volumes:
 networks:
   univibe-network:
     driver: bridge
-
-

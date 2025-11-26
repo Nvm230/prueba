@@ -1,17 +1,15 @@
 services:
   db:
     image: postgres:16
-    container_name: univibe-db
-    environment:
-      POSTGRES_DB: univibe
-      POSTGRES_USER: univibe
-      POSTGRES_PASSWORD: QFh9TT6yc7wmiELTcrN
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-db
+    env_file:
+      - .env
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U univibe"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,29 +21,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: univibe-backend
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-backend
     depends_on:
       db:
         condition: service_healthy
     env_file:
       - ./backend/.env
     ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/univibe
-      # Spotify API Configuration
-      - SPOTIFY_CLIENT_ID=00add696219c4f0a96f9ddcabebcb2a3
-      - SPOTIFY_CLIENT_SECRET=6ebda14bfd66415cbc25677e2a9e3e37
-      # Google OAuth Configuration (usar variables de entorno o .env)
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      # Mail Configuration (Gmail SMTP)
-      - MAIL_HOST=smtp.gmail.com
-      - MAIL_PORT=587
-      - MAIL_USERNAME=marckantonio2005@gmail.com
-      - MAIL_PASSWORD=awkocbvqutdtckci
-      - MAIL_SMTP_AUTH=true
-      - MAIL_SMTP_STARTTLS_ENABLE=true
+      - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/auth/register || exit 0"]
       interval: 30s
@@ -61,15 +44,14 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile.local-http
       args:
-        - VITE_API_BASE_URL=http://localhost:5173
-        - VITE_WS_BASE_URL=http://localhost:5173
-        # Google OAuth Client ID para el frontend (usar variable de entorno)
-        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-}
-    container_name: univibe-frontend
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+        - VITE_WS_BASE_URL=${VITE_WS_BASE_URL}
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+    container_name: ${COMPOSE_PROJECT_NAME:-univibe}-frontend
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
     networks:
       - univibe-network
     restart: unless-stopped
@@ -84,4 +66,3 @@ volumes:
 networks:
   univibe-network:
     driver: bridge
-

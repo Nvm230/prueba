@@ -20,6 +20,7 @@ import { GroupDetailScreen } from './src/screens/GroupDetailScreen';
 import { CreateGroupScreen } from './src/screens/CreateGroupScreen';
 import { CreateStoryScreen } from './src/screens/CreateStoryScreen';
 import { CreatePostScreen } from './src/screens/CreatePostScreen';
+import { CreateEventScreen } from './src/screens/events/CreateEventScreen';
 import { StoryViewerScreen } from './src/screens/StoryViewerScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { StoriesScreen } from './src/screens/tabs/StoriesScreen';
@@ -184,6 +185,13 @@ function Navigation() {
               options={{
                 headerShown: !!true,
                 title: 'Nueva Publicación',
+              }}
+            />
+            <Stack.Screen
+              name="CreateEvent"
+              component={CreateEventScreen}
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen
