@@ -173,25 +173,61 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
       let fileName: string | undefined;
 
       if (selectedFile) {
-        const uploaded = await uploadAttachment(selectedFile.file, 'EVENT_CHAT', eventId);
-        fileId = uploaded.id;
-        fileType = selectedFile.file.type || uploaded.contentType;
-        fileName = selectedFile.file.name;
+        console.log('Uploading file:', {
+          name: selectedFile.file.name,
+          type: selectedFile.file.type,
+          size: selectedFile.file.size
+        });
+
+        // Ensure file has proper metadata (important for camera captures)
+        const fileToUpload = selectedFile.file;
+
+        // If file type is empty (common with camera captures), try to infer from name or default to image/jpeg
+        if (!fileToUpload.type || fileToUpload.type === '') {
+          const extension = fileToUpload.name.split('.').pop()?.toLowerCase();
+          let inferredType = 'image/jpeg'; // Default for camera captures
+
+          if (extension === 'png') inferredType = 'image/png';
+          else if (extension === 'gif') inferredType = 'image/gif';
+          else if (extension === 'webp') inferredType = 'image/webp';
+          else if (extension === 'pdf') inferredType = 'application/pdf';
+
+          console.log('File type was empty, inferred:', inferredType);
+
+          // Create a new File object with the correct type
+          const blob = fileToUpload.slice(0, fileToUpload.size, inferredType);
+          const newFile = new File([blob], fileToUpload.name || 'camera-photo.jpg', { type: inferredType });
+
+          const uploaded = await uploadAttachment(newFile, 'EVENT_CHAT', eventId);
+          fileId = uploaded.id;
+          fileType = inferredType;
+          fileName = newFile.name;
+        } else {
+          const uploaded = await uploadAttachment(fileToUpload, 'EVENT_CHAT', eventId);
+          fileId = uploaded.id;
+          fileType = fileToUpload.type || uploaded.contentType;
+          fileName = fileToUpload.name;
+        }
+
+        console.log('File uploaded successfully:', { fileId, fileType, fileName });
       }
 
       const trimmedContent = chatInput.trim();
       const hasAttachment = Boolean(selectedFile);
-      const isImageAttachment = selectedFile ? selectedFile.file.type.startsWith('image/') : false;
+      const isImageAttachment = selectedFile ? (selectedFile.file.type.startsWith('image/') || fileType?.startsWith('image/')) : false;
       const messageContent =
         trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 
       if (isLive && isConnected) {
+        console.log('Sending message via WebSocket:', { content: messageContent, fileId, fileType, fileName });
         chatService.sendMessage(eventId, {
           content: messageContent,
           fileId,
           fileType,
           fileName
         });
+      } else {
+        console.warn('Cannot send message: isLive=', isLive, 'isConnected=', isConnected);
       }
 
       setChatInput('');
@@ -238,9 +274,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
       } else if (message.fileUrl) {
         const dataUrl = message.fileUrl.startsWith('data:')
           ? message.fileUrl
-          : `data:${message.fileType || 'application/octet-stream'};base64,${
-              message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl
-            }`;
+          : `data:${message.fileType || 'application/octet-stream'};base64,${message.fileUrl.includes(',') ? message.fileUrl.split(',')[1] : message.fileUrl
+          }`;
         const response = await fetch(dataUrl);
         blob = await response.blob();
       }
@@ -345,9 +380,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
                 />
               )}
               <div
-                className={`flex flex-col gap-1 max-w-[70%] ${
-                  msg.user?.id === user?.id ? 'items-end' : 'items-start'
-                }`}
+                className={`flex flex-col gap-1 max-w-[70%] ${msg.user?.id === user?.id ? 'items-end' : 'items-start'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
@@ -358,11 +392,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
                   </span>
                 </div>
                 <div
-                  className={`rounded-2xl px-4 py-2 ${
-                    msg.user?.id === user?.id
+                  className={`rounded-2xl px-4 py-2 ${msg.user?.id === user?.id
                       ? 'bg-primary-600 text-white'
                       : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
-                  }`}
+                    }`}
                 >
                   {(msg.fileUrl || msg.filePreview || msg.stickerPreview || msg.stickerId) && (
                     <div className="mb-2">
@@ -371,11 +404,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
                           <img
                             src={getImageSource(msg)}
                             alt={msg.fileName || 'Imagen'}
-                            className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${
-                              msg.stickerId || msg.stickerPreview
+                            className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${msg.stickerId || msg.stickerPreview
                                 ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
                                 : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
-                            }`}
+                              }`}
                             onError={(e) => {
                               console.error('Error loading image:', {
                                 fileUrl: msg.fileUrl?.substring(0, 100),

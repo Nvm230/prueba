@@ -290,25 +290,61 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
       let fileName: string | undefined;
 
       if (selectedFile) {
-        const uploaded = await uploadAttachment(selectedFile.file, 'PRIVATE_CHAT', otherUserId);
-        fileId = uploaded.id;
-        fileType = selectedFile.file.type || uploaded.contentType;
-        fileName = selectedFile.file.name;
+        console.log('Uploading file:', {
+          name: selectedFile.file.name,
+          type: selectedFile.file.type,
+          size: selectedFile.file.size
+        });
+
+        // Ensure file has proper metadata (important for camera captures)
+        const fileToUpload = selectedFile.file;
+
+        // If file type is empty (common with camera captures), try to infer from name or default to image/jpeg
+        if (!fileToUpload.type || fileToUpload.type === '') {
+          const extension = fileToUpload.name.split('.').pop()?.toLowerCase();
+          let inferredType = 'image/jpeg'; // Default for camera captures
+
+          if (extension === 'png') inferredType = 'image/png';
+          else if (extension === 'gif') inferredType = 'image/gif';
+          else if (extension === 'webp') inferredType = 'image/webp';
+          else if (extension === 'pdf') inferredType = 'application/pdf';
+
+          console.log('File type was empty, inferred:', inferredType);
+
+          // Create a new File object with the correct type
+          const blob = fileToUpload.slice(0, fileToUpload.size, inferredType);
+          const newFile = new File([blob], fileToUpload.name || 'camera-photo.jpg', { type: inferredType });
+
+          const uploaded = await uploadAttachment(newFile, 'PRIVATE_CHAT', otherUserId);
+          fileId = uploaded.id;
+          fileType = inferredType;
+          fileName = newFile.name;
+        } else {
+          const uploaded = await uploadAttachment(fileToUpload, 'PRIVATE_CHAT', otherUserId);
+          fileId = uploaded.id;
+          fileType = fileToUpload.type || uploaded.contentType;
+          fileName = fileToUpload.name;
+        }
+
+        console.log('File uploaded successfully:', { fileId, fileType, fileName });
       }
 
       const trimmedContent = messageInput.trim();
       const hasAttachment = Boolean(selectedFile);
-      const isImageAttachment = selectedFile ? selectedFile.file.type.startsWith('image/') : false;
+      const isImageAttachment = selectedFile ? (selectedFile.file.type.startsWith('image/') || fileType?.startsWith('image/')) : false;
       const messageContent =
         trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 
       if (isConnected) {
+        console.log('Sending message via WebSocket:', { content: messageContent, fileId, fileType, fileName });
         privateMessageService.sendMessage(otherUserId, {
           content: messageContent,
           fileId,
           fileType,
           fileName
         });
+      } else {
+        console.warn('Cannot send message: isConnected=', isConnected);
       }
 
       setMessageInput('');
@@ -325,7 +361,6 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
       console.error('Error sending message:', error);
       pushToast({
         type: 'error',
-        title: 'Error al enviar',
         description: 'No se pudo enviar el mensaje. Intenta nuevamente.'
       });
     }
@@ -559,8 +594,8 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
                   >
                     <div
                       className={`rounded-2xl ${(msg.stickerId || msg.stickerPreview)
-                          ? 'px-1 py-1' // Stickers: padding mínimo
-                          : 'px-4 py-2' // Mensajes normales: padding normal
+                        ? 'px-1 py-1' // Stickers: padding mínimo
+                        : 'px-4 py-2' // Mensajes normales: padding normal
                         } ${isOwn
                           ? 'bg-primary-600 text-white'
                           : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
@@ -596,8 +631,8 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
                                   src={imageSrc}
                                   alt={msg.fileName || 'Imagen'}
                                   className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${msg.stickerId || msg.stickerPreview
-                                      ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
-                                      : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
+                                    ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
+                                    : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
                                     }`}
                                   onError={(e) => {
                                     console.error('Error loading image:', {
