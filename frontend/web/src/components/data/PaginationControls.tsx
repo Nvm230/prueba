@@ -53,7 +53,7 @@ const PaginationControls: React.FC<Props> = ({ page, size, totalPages, totalElem
           <button
             type="button"
             onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
-            disabled={page + 1 >= totalPages}
+            disabled={page >= totalPages - 1}
             className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 disabled:opacity-40"
           >
             Next

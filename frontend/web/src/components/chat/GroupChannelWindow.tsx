@@ -235,7 +235,7 @@ const GroupChannelWindow: React.FC<GroupChannelWindowProps> = ({ groupId, canSen
 
       const trimmedContent = messageInput.trim();
       const hasAttachment = Boolean(selectedFile);
-      const isImageAttachment = selectedFile ? (selectedFile.file.type.startsWith('image/') || fileType?.startsWith('image/')) : false;
+      const isImageAttachment = fileType?.startsWith('image/') || false;
       const messageContent =
         trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 
@@ -461,8 +461,8 @@ const GroupChannelWindow: React.FC<GroupChannelWindowProps> = ({ groupId, canSen
                               src={getImageSource(msg)}
                               alt={msg.fileName || 'Imagen'}
                               className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${msg.stickerId || msg.stickerPreview
-                                  ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
-                                  : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
+                                ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
+                                : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
                                 }`}
                               onError={(e) => {
                                 console.error('Error loading image:', {

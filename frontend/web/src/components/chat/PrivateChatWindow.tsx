@@ -331,7 +331,7 @@ const PrivateChatWindow: React.FC<PrivateChatWindowProps> = ({
 
       const trimmedContent = messageInput.trim();
       const hasAttachment = Boolean(selectedFile);
-      const isImageAttachment = selectedFile ? (selectedFile.file.type.startsWith('image/') || fileType?.startsWith('image/')) : false;
+      const isImageAttachment = fileType?.startsWith('image/') || false;
       const messageContent =
         trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 

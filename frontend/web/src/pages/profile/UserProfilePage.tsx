@@ -71,7 +71,7 @@ const UserProfilePage = () => {
             {profile.email && (
               <p className="text-slate-600 dark:text-slate-400 mb-4">{profile.email}</p>
             )}
-            
+
             {/* Estadísticas */}
             <div className="flex items-center gap-6 mb-4">
               <div className="text-center">
@@ -93,7 +93,7 @@ const UserProfilePage = () => {
                 </div>
               )}
             </div>
-            
+
             {isOwnProfile && (
               <a
                 href="/settings"
@@ -161,7 +161,7 @@ const UserProfilePage = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Overlay con información al hover */}
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white">
                       <div className="flex items-center gap-1">

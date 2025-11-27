@@ -57,29 +57,29 @@ const SurveyPage = () => {
         .split('\n')
         .map((question) => question.trim())
         .filter((q) => q && q.length > 0);
-      
+
       if (questions.length === 0) {
         pushToast({ type: 'error', title: 'Error', description: 'Debes agregar al menos una pregunta con al menos un carácter' });
         return;
       }
-      
+
       // Validar que todas las preguntas tengan al menos un carácter
       const invalidQuestions = questions.filter((q) => !q || q.trim().length === 0);
       if (invalidQuestions.length > 0) {
         pushToast({ type: 'error', title: 'Error', description: 'Todas las preguntas deben tener al menos un carácter' });
         return;
       }
-      
+
       await createSurvey({ eventId: Number(values.eventId), title: values.title, questions });
       pushToast({ type: 'success', title: 'Encuesta creada', description: 'Listo para recolectar feedback.' });
       reset();
       surveyQuery.refetch();
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || 'Error desconocido al crear la encuesta';
-      pushToast({ 
-        type: 'error', 
-        title: 'No se pudo crear', 
-        description: errorMessage 
+      pushToast({
+        type: 'error',
+        title: 'No se pudo crear',
+        description: errorMessage
       });
       console.error('Error creating survey:', error);
     }
@@ -189,80 +189,80 @@ const SurveyPage = () => {
               {(() => {
                 const surveyQuestions = survey.questions ?? [];
                 return surveyQuestions.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Esta encuesta aún no tiene preguntas.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Esta encuesta aún no tiene preguntas.</p>
                 ) : (
-                <ul className="space-y-3">
-                  {surveyQuestions.map((question) => {
-                    const answersList = question.answers ?? [];
-                    return (
-                    <li key={question.id} className="rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-3">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">{question.text}</div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Respuestas registradas: {answersList.length}
-                      </p>
-                      {canManageSurveys && (
-                        <button
-                          onClick={() => {
-                            setViewingAnswers((prev) => ({ ...prev, [question.id]: !prev[question.id] }));
-                            if (!viewingAnswers[question.id]) {
-                              queryClient.fetchQuery({
-                                queryKey: ['surveyAnswers', survey.id],
-                                queryFn: ({ signal }) => fetchSurveyAnswers(survey.id, signal)
-                              });
-                            }
-                          }}
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                          {viewingAnswers[question.id] ? 'Ocultar respuestas' : 'Ver respuestas'}
-                        </button>
-                      )}
-                      {viewingAnswers[question.id] && canManageSurveys && (
-                        <div className="mt-2 space-y-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-                          {answersList.length === 0 ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Aún no hay respuestas</p>
-                          ) : (
-                            answersList.map((answer) => (
-                              <div key={answer.id} className="text-xs">
-                                <span className="font-medium text-slate-700 dark:text-slate-300">
-                                  {answer.respondent.name}:
-                                </span>{' '}
-                                <span className="text-slate-600 dark:text-slate-400">{answer.answer}</span>
-                              </div>
-                            ))
+                  <ul className="space-y-3">
+                    {surveyQuestions.map((question) => {
+                      const answersList = question.answers ?? [];
+                      return (
+                        <li key={question.id} className="rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-3">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-white">{question.text}</div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Respuestas registradas: {answersList.length}
+                          </p>
+                          {canManageSurveys && (
+                            <button
+                              onClick={() => {
+                                setViewingAnswers((prev) => ({ ...prev, [question.id]: !prev[question.id] }));
+                                if (!viewingAnswers[question.id]) {
+                                  queryClient.fetchQuery({
+                                    queryKey: ['surveyAnswers', survey.id],
+                                    queryFn: ({ signal }) => fetchSurveyAnswers(survey.id, signal)
+                                  });
+                                }
+                              }}
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              {viewingAnswers[question.id] ? 'Ocultar respuestas' : 'Ver respuestas'}
+                            </button>
                           )}
-                        </div>
-                      )}
-                      {!survey.closed && (
-                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <input
-                            type="text"
-                            value={answers[question.id] ?? ''}
-                            onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
-                            className="flex-1 rounded-full border border-slate-200 bg-transparent px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700"
-                            placeholder="Escribe tu respuesta"
-                            disabled={survey.closed}
-                          />
-                          <SubmitButton
-                            type="button"
-                            onClick={() => submitAnswer(question.id)}
-                            className="sm:w-auto"
-                            disabled={survey.closed}
-                          >
-                            Enviar
-                          </SubmitButton>
-                        </div>
-                      )}
-                      {survey.closed && (
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic">
-                          Esta encuesta está cerrada. Ya no se pueden enviar más respuestas.
-                        </p>
-                      )}
-                    </li>
-                  );
-                  })}
-                </ul>
-              );
+                          {viewingAnswers[question.id] && canManageSurveys && (
+                            <div className="mt-2 space-y-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+                              {answersList.length === 0 ? (
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Aún no hay respuestas</p>
+                              ) : (
+                                answersList.map((answer) => (
+                                  <div key={answer.id} className="text-xs">
+                                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                                      {answer.respondent.name}:
+                                    </span>{' '}
+                                    <span className="text-slate-600 dark:text-slate-400">{answer.answer}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                          {!survey.closed && (
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <input
+                                type="text"
+                                value={answers[question.id] ?? ''}
+                                onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
+                                className="flex-1 rounded-full border border-slate-200 bg-transparent px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700"
+                                placeholder="Escribe tu respuesta"
+                                disabled={survey.closed}
+                              />
+                              <SubmitButton
+                                type="button"
+                                onClick={() => submitAnswer(question.id)}
+                                className="sm:w-auto"
+                                disabled={survey.closed}
+                              >
+                                Enviar
+                              </SubmitButton>
+                            </div>
+                          )}
+                          {survey.closed && (
+                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic">
+                              Esta encuesta está cerrada. Ya no se pueden enviar más respuestas.
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
               })()}
             </div>
           ))}

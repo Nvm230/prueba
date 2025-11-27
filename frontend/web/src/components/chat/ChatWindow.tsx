@@ -214,7 +214,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
 
       const trimmedContent = chatInput.trim();
       const hasAttachment = Boolean(selectedFile);
-      const isImageAttachment = selectedFile ? (selectedFile.file.type.startsWith('image/') || fileType?.startsWith('image/')) : false;
+      const isImageAttachment = fileType?.startsWith('image/') || false;
       const messageContent =
         trimmedContent || (hasAttachment ? (isImageAttachment ? '' : '📎 Archivo adjunto') : '');
 
@@ -393,8 +393,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
                 </div>
                 <div
                   className={`rounded-2xl px-4 py-2 ${msg.user?.id === user?.id
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white'
                     }`}
                 >
                   {(msg.fileUrl || msg.filePreview || msg.stickerPreview || msg.stickerId) && (
@@ -405,8 +405,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ eventId, isLive }) => {
                             src={getImageSource(msg)}
                             alt={msg.fileName || 'Imagen'}
                             className={`rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${msg.stickerId || msg.stickerPreview
-                                ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
-                                : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
+                              ? 'h-32 w-32 object-contain' // Stickers: tamaño fijo pequeño (128px)
+                              : 'max-w-full max-h-64' // Imágenes normales: tamaño flexible
                               }`}
                             onError={(e) => {
                               console.error('Error loading image:', {

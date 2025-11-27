@@ -13,7 +13,7 @@ export function usePagination(defaultSize: number = 10) {
     const searchParams = new URLSearchParams(location.search);
 
     const [pagination, setPagination] = useState<PaginationParams>({
-        page: parseInt(searchParams.get('page') || '1'),
+        page: parseInt(searchParams.get('page') || '0'),
         size: parseInt(searchParams.get('size') || String(defaultSize)),
     });
 
@@ -30,7 +30,7 @@ export function usePagination(defaultSize: number = 10) {
     };
 
     const setSize = (size: number) => {
-        setPagination((prev) => ({ ...prev, size, page: 1 })); // Reset to page 1 when size changes
+        setPagination((prev) => ({ ...prev, size, page: 0 })); // Reset to page 0 when size changes
     };
 
     const setTotal = (total: number) => {
@@ -41,8 +41,8 @@ export function usePagination(defaultSize: number = 10) {
         ? Math.ceil(pagination.total / pagination.size)
         : 0;
 
-    const hasNext = pagination.page < totalPages;
-    const hasPrev = pagination.page > 1;
+    const hasNext = pagination.page < totalPages - 1;
+    const hasPrev = pagination.page > 0;
 
     const nextPage = () => {
         if (hasNext) setPage(pagination.page + 1);
@@ -53,7 +53,7 @@ export function usePagination(defaultSize: number = 10) {
     };
 
     const goToPage = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
+        if (page >= 0 && page < totalPages) {
             setPage(page);
         }
     };
